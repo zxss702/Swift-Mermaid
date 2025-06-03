@@ -375,14 +375,14 @@ struct NoteView: View {
         switch note.position {
         case .leftOf(let participant):
             if let index = participants.firstIndex(of: participant) {
-                let participantX = calculateParticipantX(index: index, count: participants.count)
+                let participantX = calculateParticipantX(index: index, count: participants.count, totalWidth: size.width)
                 return (participantX - 60, 100)
             }
             return (size.width / 2, 100)
             
         case .rightOf(let participant):
             if let index = participants.firstIndex(of: participant) {
-                let participantX = calculateParticipantX(index: index, count: participants.count)
+                let participantX = calculateParticipantX(index: index, count: participants.count, totalWidth: size.width)
                 return (participantX + 60, 100)
             }
             return (size.width / 2, 100)
@@ -390,13 +390,13 @@ struct NoteView: View {
         case .over(let noteParticipants):
             if noteParticipants.count == 1,
                let index = participants.firstIndex(of: noteParticipants[0]) {
-                let participantX = calculateParticipantX(index: index, count: participants.count)
+                let participantX = calculateParticipantX(index: index, count: participants.count, totalWidth: size.width)
                 return (participantX, 120)
             } else if noteParticipants.count >= 2,
                       let firstIndex = participants.firstIndex(of: noteParticipants[0]),
                       let lastIndex = participants.firstIndex(of: noteParticipants.last!) {
-                let firstX = calculateParticipantX(index: firstIndex, count: participants.count)
-                let lastX = calculateParticipantX(index: lastIndex, count: participants.count)
+                let firstX = calculateParticipantX(index: firstIndex, count: participants.count, totalWidth: size.width)
+                let lastX = calculateParticipantX(index: lastIndex, count: participants.count, totalWidth: size.width)
                 let centerX = (firstX + lastX) / 2
                 let width = abs(lastX - firstX) + 40
                 return (centerX, width)
