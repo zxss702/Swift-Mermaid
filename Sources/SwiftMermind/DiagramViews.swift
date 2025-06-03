@@ -194,20 +194,20 @@ public struct PieChartView: View {
         .padding()
     }
     
-    // 中式传统配色方案
+    // 中式传统深色配色方案（半透明低饱和度）
     private let chineseTraditionalColors: [Color] = [
-        Color(red: 0.85, green: 0.32, blue: 0.31), // 朱红
-        Color(red: 0.20, green: 0.47, blue: 0.80), // 靛青
-        Color(red: 0.13, green: 0.55, blue: 0.13), // 竹绿
-        Color(red: 0.96, green: 0.64, blue: 0.38), // 杏黄
-        Color(red: 0.58, green: 0.40, blue: 0.74), // 紫檀
-        Color(red: 0.85, green: 0.44, blue: 0.58), // 胭脂
-        Color(red: 0.40, green: 0.80, blue: 0.67), // 青瓷
-        Color(red: 0.93, green: 0.69, blue: 0.13), // 明黄
-        Color(red: 0.55, green: 0.27, blue: 0.07), // 赭石
-        Color(red: 0.29, green: 0.33, blue: 0.53), // 藏青
-        Color(red: 0.80, green: 0.36, blue: 0.36), // 枣红
-        Color(red: 0.47, green: 0.53, blue: 0.60)  // 青灰
+        Color(red: 0.45, green: 0.20, blue: 0.18).opacity(0.85), // 深朱红
+        Color(red: 0.15, green: 0.25, blue: 0.45).opacity(0.85), // 深靛青
+        Color(red: 0.18, green: 0.35, blue: 0.18).opacity(0.85), // 深竹绿
+        Color(red: 0.55, green: 0.40, blue: 0.25).opacity(0.85), // 深杏黄
+        Color(red: 0.35, green: 0.25, blue: 0.45).opacity(0.85), // 深紫檀
+        Color(red: 0.50, green: 0.25, blue: 0.35).opacity(0.85), // 深胭脂
+        Color(red: 0.25, green: 0.45, blue: 0.40).opacity(0.85), // 深青瓷
+        Color(red: 0.50, green: 0.45, blue: 0.20).opacity(0.85), // 深明黄
+        Color(red: 0.40, green: 0.25, blue: 0.15).opacity(0.85), // 深赭石
+        Color(red: 0.20, green: 0.25, blue: 0.35).opacity(0.85), // 深藏青
+        Color(red: 0.45, green: 0.25, blue: 0.25).opacity(0.85), // 深枣红
+        Color(red: 0.30, green: 0.35, blue: 0.40).opacity(0.85)  // 深青灰
     ]
     
     // 布局配置结构
@@ -279,22 +279,22 @@ public struct PieChartView: View {
         let legendItemHeight: CGFloat = dataCount <= 4 ? 40 : (dataCount <= 8 ? 35 : 30)
         let totalLegendHeight = CGFloat(dataCount) * legendItemHeight
         
-        // 确保饼图直径大于图例高度，同时适应屏幕
-        let minPieSize = max(totalLegendHeight * 1.1, 200)
-        let maxPieSize = min(availableHeight * 0.8, availableWidth * 0.5)
-        let pieSize = min(max(minPieSize, 200), maxPieSize)
+        // 确保饼图直径明显大于图例高度，增加倍数到1.5
+        let minPieSize = max(totalLegendHeight * 1.5, 250)
+        let maxPieSize = min(availableHeight * 0.85, availableWidth * 0.6) // 增加饼图占比
+        let pieSize = min(max(minPieSize, 250), maxPieSize)
         
-        // 计算图例区域宽度
-        let legendMaxWidth = availableWidth - pieSize - 40
+        // 计算图例区域宽度，给饼图更多空间
+        let legendMaxWidth = max(availableWidth - pieSize - 50, 120)
         
         return PieLayoutConfig(
             pieSize: pieSize,
-            spacing: 30,
+            spacing: 25, // 减少间距给饼图更多空间
             legendSpacing: dataCount <= 4 ? 12 : (dataCount <= 8 ? 10 : 8),
             legendIconSize: dataCount <= 4 ? 18 : (dataCount <= 8 ? 16 : 14),
             legendFontSize: dataCount <= 4 ? 14 : (dataCount <= 8 ? 13 : 12),
-            labelFontSize: pieSize > 250 ? 12 : (pieSize > 200 ? 11 : 10),
-            legendMaxWidth: max(legendMaxWidth, 150)
+            labelFontSize: pieSize > 300 ? 14 : (pieSize > 250 ? 12 : 11), // 调整标签字体
+            legendMaxWidth: legendMaxWidth
         )
     }
     
