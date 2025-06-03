@@ -52,59 +52,30 @@ public struct mermindView: View {
 
 #if canImport(UIKit)
 /// A zoomable and scrollable container for Mermaid diagrams using UIScrollView
-struct ZoomableScrollView: UIViewRepresentable {
+struct ZoomableScrollView: UIViewControllerRepresentable {
+    typealias UIViewControllerType = ZoomableScrollViewController
+    
     let text: String
     let parser: MermaidParser
+    let maxScaler: CGFloat = 2.0
+    let minScaler: CGFloat = 0
+    var topIns: CGFloat = 0
+    var bottomIns: CGFloat = 0
+    var leftIns: CGFloat = 0
+    var rightIns: CGFloat = 0
+    var scrollToCenter: Bool = true
     
-    func makeUIView(context: Context) -> UIScrollView {
-        let scrollView = UIScrollView()
-        scrollView.delegate = context.coordinator
-        scrollView.minimumZoomScale = 0.5
-        scrollView.maximumZoomScale = 3.0
-        scrollView.zoomScale = 1.0
-        scrollView.showsVerticalScrollIndicator = true
-        scrollView.showsHorizontalScrollIndicator = true
-        scrollView.backgroundColor = UIColor.clear
-        scrollView.bouncesZoom = true
-        scrollView.bounces = true
-        
-        // Create the content view
-        let hostingController = UIHostingController(rootView: AnyView(createDiagramView()))
-        hostingController.view.backgroundColor = UIColor.clear
-        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Add the hosting controller's view to scroll view
-        scrollView.addSubview(hostingController.view)
-        
-        // Store the hosting controller in the coordinator
-        context.coordinator.hostingController = hostingController
-        context.coordinator.scrollView = scrollView
-        
-        // Initial setup
-        DispatchQueue.main.async {
-            context.coordinator.updateContentSize()
-        }
-        
-        return scrollView
+    @Environment(\.safeAreaInsets) var safeAreaInsets
+    
+    func makeUIViewController(context: Context) -> ZoomableScrollViewController {
+        ZoomableScrollViewController(rootView: self)
     }
     
-    func updateUIView(_ scrollView: UIScrollView, context: Context) {
-        // Update the diagram when text changes
-        let newDiagramView = AnyView(createDiagramView())
-        context.coordinator.hostingController?.rootView = newDiagramView
-        
-        // Reset zoom and recalculate content size
-        scrollView.zoomScale = 1.0
-        DispatchQueue.main.async {
-            context.coordinator.updateContentSize()
-        }
+    func updateUIViewController(_ uiViewController: ZoomableScrollViewController, context: Context) {
+        uiViewController.updateContent(text: text, parser: parser)
     }
     
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    private func createDiagramView() -> some View {
+    func createDiagramView() -> some View {
         GeometryReader { geometry in
             let diagram = parser.parse(text)
             
@@ -135,124 +106,148 @@ struct ZoomableScrollView: UIViewRepresentable {
         }
         .background(Color.clear)
     }
-    
-    class Coordinator: NSObject, UIScrollViewDelegate {
-        var hostingController: UIHostingController<AnyView>?
-        var scrollView: UIScrollView?
-        private var isInitialSetup = true
-        
-        func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-            return hostingController?.view
-        }
-        
-        func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            // Update content scale for crisp rendering during zoom
-            if let hostingView = hostingController?.view {
-                hostingView.layer.contentsScale = UIScreen.main.scale * scrollView.zoomScale
-            }
-            // 缩放时重新居中内容
-            centerContent()
-        }
-        
-        func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
-            // Ensure text remains crisp after zooming
-            if let hostingView = hostingController?.view {
-                hostingView.layer.shouldRasterize = false
-                // Force re-render at the new scale for crisp text
-                hostingView.layer.contentsScale = UIScreen.main.scale * scale
-                hostingView.setNeedsDisplay()
-            }
-        }
-        
-        func updateContentSize() {
-            guard let scrollView = scrollView,
-                  let hostingView = hostingController?.view else { return }
-            
-            // 获取当前滚动视图的实际大小
-            let scrollViewSize = scrollView.bounds.size
-            guard scrollViewSize.width > 0 && scrollViewSize.height > 0 else {
-                // 如果滚动视图还没有大小，延迟执行
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.updateContentSize()
-                }
-                return
-            }
-            
-            // 为SwiftUI视图提供更大的空间来计算其理想大小，确保不会截断内容
-            let proposedSize = CGSize(width: Int.max,
-                                    height: Int.max)
-            
-            // 临时设置一个大的frame来让SwiftUI计算其内容大小
-            hostingView.frame = CGRect(origin: .zero, size: proposedSize)
-            hostingView.setNeedsLayout()
-            hostingView.layoutIfNeeded()
-            
-            // 使用systemLayoutSizeFitting获取内容的实际大小
-            let fittingSize = hostingView.systemLayoutSizeFitting(
-                proposedSize,
-                withHorizontalFittingPriority: .fittingSizeLevel,
-                verticalFittingPriority: .fittingSizeLevel
-            )
-            
-            // 使用实际计算出的大小，添加一些边距确保内容完整显示
-            let contentWidth = max(fittingSize.width + 40, scrollViewSize.width)
-            let contentHeight = max(fittingSize.height + 40, scrollViewSize.height)
-            let contentSize = CGSize(width: contentWidth, height: contentHeight)
-            
-            // 设置最终的frame和contentSize
-            hostingView.frame = CGRect(origin: .zero, size: contentSize)
-            scrollView.contentSize = contentSize
-            
-            // 确保清晰的渲染
-            hostingView.layer.contentsScale = UIScreen.main.scale
-            
-            // 重置滚动条位置和内容边距
-            scrollView.contentInset = .zero
-            scrollView.scrollIndicatorInsets = .zero
-            
-            // 每次更新后都重新居中内容
-            DispatchQueue.main.async {
-                self.centerContent()
-            }
-        }
-        
-        private func centerContent() {
-            guard let scrollView = scrollView else { return }
-            
-            let scrollViewSize = scrollView.bounds.size
-            let contentSize = scrollView.contentSize
-            let currentZoom = scrollView.zoomScale
-            
-            // 计算缩放后的实际内容大小
-            let scaledContentSize = CGSize(
-                width: contentSize.width * currentZoom,
-                height: contentSize.height * currentZoom
-            )
-            
-            var contentOffset = CGPoint.zero
-            
-            // 水平居中：如果缩放后的内容宽度小于滚动视图宽度，则居中
-            if scaledContentSize.width <= scrollViewSize.width {
-                contentOffset.x = -(scrollViewSize.width - scaledContentSize.width) / 2 / currentZoom
-            } else {
-                // 内容较大时，确保不超出边界
-                let maxOffsetX = contentSize.width - scrollViewSize.width / currentZoom
-                contentOffset.x = max(0, min(scrollView.contentOffset.x, maxOffsetX))
-            }
-            
-            // 垂直居中：如果缩放后的内容高度小于滚动视图高度，则居中
-            if scaledContentSize.height <= scrollViewSize.height {
-                contentOffset.y = -(scrollViewSize.height - scaledContentSize.height) / 2 / currentZoom
-            } else {
-                // 内容较大时，确保不超出边界
-                let maxOffsetY = contentSize.height - scrollViewSize.height / currentZoom
-                contentOffset.y = max(0, min(scrollView.contentOffset.y, maxOffsetY))
-            }
-            
-            scrollView.contentOffset = contentOffset
-        }
-        
+}
 
+class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
+    let rootView: ZoomableScrollView
+    var hostingView: UIHostingController<AnyView>
+    var scrollView: UIScrollView = UIScrollView()
+    
+    init(rootView: ZoomableScrollView) {
+        self.rootView = rootView
+        self.hostingView = UIHostingController(rootView: AnyView(rootView.createDiagramView()))
+        hostingView.view.isUserInteractionEnabled = true
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.addSubview(scrollView)
+        
+        // 设置 ScrollView
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.isDirectionalLockEnabled = false
+        scrollView.delegate = self
+        
+        if rootView.minScaler != 0 {
+            scrollView.maximumZoomScale = rootView.maxScaler
+            scrollView.minimumZoomScale = rootView.minScaler
+        }
+        
+        hostingView.view.backgroundColor = .clear
+        
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor, constant: 0),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: 0),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 0)
+        ])
+        
+        scrollView.addSubview(hostingView.view)
+        hostingView.view.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            scrollView.contentLayoutGuide.heightAnchor.constraint(equalTo: hostingView.view.heightAnchor),
+            scrollView.contentLayoutGuide.widthAnchor.constraint(equalTo: hostingView.view.widthAnchor)
+        ])
+        
+        scrollView.contentInset.top = rootView.topIns
+        scrollView.contentInset.bottom = rootView.bottomIns
+        scrollView.contentInset.left = rootView.leftIns
+        scrollView.contentInset.right = rootView.rightIns
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        if rootView.minScaler == 0 {
+            let minScaler = min(
+                (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
+                (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+            )
+            
+            if scrollView.minimumZoomScale != minScaler {
+                scrollView.minimumZoomScale = minScaler
+                scrollView.maximumZoomScale = scrollView.minimumZoomScale + rootView.maxScaler
+                scrollView.zoomScale = scrollView.minimumZoomScale
+            }
+        }
+        
+        scrollViewDidZoom(scrollView)
+        
+        if rootView.scrollToCenter {
+            scrollView.zoomScale = min(
+                (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
+                (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+            )
+        }
+    }
+    
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        
+        if rootView.minScaler == 0 {
+            let minScaler = min(
+                (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
+                (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+            )
+            
+            if scrollView.minimumZoomScale != minScaler {
+                scrollView.minimumZoomScale = minScaler
+                scrollView.maximumZoomScale = scrollView.minimumZoomScale + rootView.maxScaler
+                
+                if scrollView.zoomScale < minScaler {
+                    if rootView.scrollToCenter {
+                        scrollView.zoomScale = min(
+                            (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
+                            (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+                        )
+                    } else {
+                        scrollView.zoomScale = scrollView.minimumZoomScale
+                    }
+                }
+            }
+        }
+        
+        scrollViewDidZoom(scrollView)
+    }
+    
+    func updateContent(text: String, parser: MermaidParser) {
+        // 创建新的 ZoomableScrollView 实例来更新内容
+        let newRootView = ZoomableScrollView(
+            text: text,
+            parser: parser,
+            topIns: rootView.topIns,
+            bottomIns: rootView.bottomIns,
+            leftIns: rootView.leftIns,
+            rightIns: rootView.rightIns,
+            scrollToCenter: rootView.scrollToCenter
+        )
+        
+        hostingView.rootView = AnyView(newRootView.createDiagramView())
+        
+        DispatchQueue.main.async {
+            self.viewWillLayoutSubviews()
+        }
+    }
+    
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        return hostingView.view
+    }
+    
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        scrollView.contentInset.left = max(
+            (view.bounds.width + rootView.safeAreaInsets.leading + rootView.safeAreaInsets.trailing - hostingView.view.frame.width) / 2,
+            rootView.leftIns
+        )
+        scrollView.contentInset.top = max(
+            (view.bounds.height + rootView.safeAreaInsets.top + rootView.safeAreaInsets.bottom - hostingView.view.frame.height) / 2,
+            rootView.topIns
+        )
     }
 }
 #endif
