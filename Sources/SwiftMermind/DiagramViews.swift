@@ -131,7 +131,9 @@ public struct PieChartView: View {
             }
             
             if !pieData.isEmpty {
-                HStack(spacing: 30) {
+                let layout = calculateOptimalLayout(pieData: pieData)
+                
+                HStack(spacing: layout.spacing) {
                     // Pie Chart
                     ZStack {
                         ForEach(0..<pieData.count, id: \.self) { index in
@@ -139,38 +141,43 @@ public struct PieChartView: View {
                                 startAngle: calculateStartAngle(index: index, data: pieData),
                                 endAngle: calculateEndAngle(index: index, data: pieData)
                             )
-                            .fill(pieColors[index % pieColors.count])
+                            .fill(chineseTraditionalColors[index % chineseTraditionalColors.count])
                             .overlay(
                                 // Add percentage labels on slices
                                 Text("\(calculatePercentage(index: index, data: pieData), specifier: "%.1f")%")
-                                    .font(.caption)
+                                    .font(.system(size: layout.labelFontSize))
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)
-                                    .position(calculateLabelPosition(index: index, data: pieData, in: CGRect(x: 0, y: 0, width: min(size.width, size.height) * 0.5, height: min(size.width, size.height) * 0.5)))
+                                    .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0)
+                                    .position(calculateLabelPosition(index: index, data: pieData, in: CGRect(x: 0, y: 0, width: layout.pieSize, height: layout.pieSize)))
                             )
                         }
                     }
-                    .frame(width: min(size.width, size.height) * 0.5, height: min(size.width, size.height) * 0.5)
+                    .frame(width: layout.pieSize, height: layout.pieSize)
                     
                     // Legend
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: layout.legendSpacing) {
                         ForEach(0..<pieData.count, id: \.self) { index in
-                            HStack(spacing: 8) {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(pieColors[index % pieColors.count])
-                                    .frame(width: 16, height: 16)
+                            HStack(spacing: 10) {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(chineseTraditionalColors[index % chineseTraditionalColors.count])
+                                    .frame(width: layout.legendIconSize, height: layout.legendIconSize)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(pieData[index].label)
-                                        .font(.caption)
+                                        .font(.system(size: layout.legendFontSize))
                                         .fontWeight(.medium)
+                                        .lineLimit(nil)
+                                        .fixedSize(horizontal: false, vertical: true)
                                     Text("\(pieData[index].value, specifier: "%.0f") (\(calculatePercentage(index: index, data: pieData), specifier: "%.1f")%)")
-                                        .font(.caption2)
+                                        .font(.system(size: layout.legendFontSize - 2))
                                         .foregroundColor(.secondary)
                                 }
+                                Spacer()
                             }
                         }
                     }
+                    .frame(maxWidth: layout.legendMaxWidth)
                 }
             } else {
                 VStack {
@@ -187,10 +194,32 @@ public struct PieChartView: View {
         .padding()
     }
     
-    private let pieColors: [Color] = [
-        .blue, .red, .green, .orange, .purple, .pink, .yellow, .cyan,
-        .mint, .indigo, .brown, .teal
+    // 中式传统配色方案
+    private let chineseTraditionalColors: [Color] = [
+        Color(red: 0.85, green: 0.32, blue: 0.31), // 朱红
+        Color(red: 0.20, green: 0.47, blue: 0.80), // 靛青
+        Color(red: 0.13, green: 0.55, blue: 0.13), // 竹绿
+        Color(red: 0.96, green: 0.64, blue: 0.38), // 杏黄
+        Color(red: 0.58, green: 0.40, blue: 0.74), // 紫檀
+        Color(red: 0.85, green: 0.44, blue: 0.58), // 胭脂
+        Color(red: 0.40, green: 0.80, blue: 0.67), // 青瓷
+        Color(red: 0.93, green: 0.69, blue: 0.13), // 明黄
+        Color(red: 0.55, green: 0.27, blue: 0.07), // 赭石
+        Color(red: 0.29, green: 0.33, blue: 0.53), // 藏青
+        Color(red: 0.80, green: 0.36, blue: 0.36), // 枣红
+        Color(red: 0.47, green: 0.53, blue: 0.60)  // 青灰
     ]
+    
+    // 布局配置结构
+    private struct PieLayoutConfig {
+        let pieSize: CGFloat
+        let spacing: CGFloat
+        let legendSpacing: CGFloat
+        let legendIconSize: CGFloat
+        let legendFontSize: CGFloat
+        let labelFontSize: CGFloat
+        let legendMaxWidth: CGFloat
+    }
     
     private struct PieData {
         let label: String
@@ -240,13 +269,45 @@ public struct PieChartView: View {
         return total > 0 ? (data[index].value / total * 100) : 0
     }
     
+    // 计算最优布局配置
+    private func calculateOptimalLayout(pieData: [PieData]) -> PieLayoutConfig {
+        let dataCount = pieData.count
+        let availableWidth = size.width - 40 // 减去padding
+        let availableHeight = size.height - 80 // 减去padding和标题空间
+        
+        // 根据数据项数量调整布局
+        let legendItemHeight: CGFloat = dataCount <= 4 ? 40 : (dataCount <= 8 ? 35 : 30)
+        let totalLegendHeight = CGFloat(dataCount) * legendItemHeight
+        
+        // 确保饼图直径大于图例高度，同时适应屏幕
+        let minPieSize = max(totalLegendHeight * 1.1, 200)
+        let maxPieSize = min(availableHeight * 0.8, availableWidth * 0.5)
+        let pieSize = min(max(minPieSize, 200), maxPieSize)
+        
+        // 计算图例区域宽度
+        let legendMaxWidth = availableWidth - pieSize - 40
+        
+        return PieLayoutConfig(
+            pieSize: pieSize,
+            spacing: 30,
+            legendSpacing: dataCount <= 4 ? 12 : (dataCount <= 8 ? 10 : 8),
+            legendIconSize: dataCount <= 4 ? 18 : (dataCount <= 8 ? 16 : 14),
+            legendFontSize: dataCount <= 4 ? 14 : (dataCount <= 8 ? 13 : 12),
+            labelFontSize: pieSize > 250 ? 12 : (pieSize > 200 ? 11 : 10),
+            legendMaxWidth: max(legendMaxWidth, 150)
+        )
+    }
+    
     private func calculateLabelPosition(index: Int, data: [PieData], in rect: CGRect) -> CGPoint {
         let total = data.reduce(0) { $0 + $1.value }
         let startAngle = data.prefix(index).reduce(0) { $0 + $1.value } / total * 360 - 90
         let endAngle = data.prefix(index + 1).reduce(0) { $0 + $1.value } / total * 360 - 90
         let midAngle = (startAngle + endAngle) / 2
         
-        let radius = min(rect.width, rect.height) / 2 * 0.7 // Position labels at 70% of radius
+        // 根据扇形大小调整标签位置
+        let percentage = calculatePercentage(index: index, data: data)
+        let radiusRatio = percentage > 10 ? 0.7 : 0.8 // 小扇形的标签放得更靠外
+        let radius = min(rect.width, rect.height) / 2 * radiusRatio
         let center = CGPoint(x: rect.midX, y: rect.midY)
         
         let x = center.x + radius * cos(midAngle * .pi / 180)
