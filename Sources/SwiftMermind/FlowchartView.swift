@@ -3,123 +3,93 @@ import SwiftUI
 /// A view that renders a flowchart diagram
 public struct FlowchartView: View {
     private let diagram: MermaidDiagram
-    private let size: CGSize
-    private let nodeSpacing: CGFloat = 80
+    private let nodeSpacing: CGFloat = 150
     private let levelSpacing: CGFloat = 100
     
-    public init(diagram: MermaidDiagram, size: CGSize) {
+    public init(diagram: MermaidDiagram) {
         self.diagram = diagram
-        self.size = size
     }
     
     public var body: some View {
-        ZStack {
-            // Draw edges first so they appear behind nodes
-            ForEach(diagram.edges) { edge in
-                EdgeView(edge: edge, nodes: diagram.nodes)
-            }
-            
-            // Draw nodes
-            ForEach(diagram.nodes) { node in
-                NodeView(node: node)
-                    .position(calculateNodePosition(node))
-            }
-        }
-        .frame(width: size.width, height: size.height)
-    }
-    
-    private func calculateNodePosition(_ node: Node) -> CGPoint {
-        // If the node already has a position, use it
-        if node.position != .zero {
-            return node.position
-        }
-        
-        // Simple layout algorithm for demonstration
-        // In a real implementation, you would use a more sophisticated layout algorithm
-        let nodeIndex = diagram.nodes.firstIndex { $0.id == node.id } ?? 0
-        let nodesCount = diagram.nodes.count
-        
-        if nodesCount <= 1 {
-            return CGPoint(x: size.width / 2, y: size.height / 2)
-        }
-        
-        // Calculate level based on incoming edges
-        var level = 0
-        var visited = Set<String>()
-        var currentLevel = [node.id]
-        
-        while !currentLevel.isEmpty {
-            var nextLevel = [String]()
-            
-            for nodeId in currentLevel {
-                visited.insert(nodeId)
+        GeometryReader { geometry in
+            ZStack {
+                // Draw edges first (so they appear behind nodes)
+                ForEach(diagram.edges.indices, id: \.self) { index in
+                    EdgeView(edge: diagram.edges[index], nodes: nodesWithPositions(in: geometry.size))
+                }
                 
-                // Find all nodes that have edges coming into this node
-                for edge in diagram.edges where edge.to == nodeId && !visited.contains(edge.from) {
-                    nextLevel.append(edge.from)
+                // Draw nodes
+                ForEach(nodesWithPositions(in: geometry.size), id: \.id) { node in
+                    NodeView(node: node)
+                        .position(node.position)
                 }
             }
-            
-            if nextLevel.isEmpty {
-                break
-            }
-            
-            level += 1
-            currentLevel = nextLevel
         }
-        
-        // Calculate horizontal position based on siblings at the same level
-        var siblingsAtLevel = [String]()
-        for n in diagram.nodes {
-            let nodeLevel = calculateNodeLevel(n.id)
-            if nodeLevel == level {
-                siblingsAtLevel.append(n.id)
-            }
-        }
-        
-        let siblingIndex = siblingsAtLevel.firstIndex(of: node.id) ?? 0
-        let siblingCount = siblingsAtLevel.count
-        
-        let x: CGFloat
-        if siblingCount <= 1 {
-            x = size.width / 2
-        } else {
-            let availableWidth = size.width - 100 // Padding on both sides
-            let step = availableWidth / CGFloat(siblingCount - 1)
-            x = 50 + CGFloat(siblingIndex) * step
-        }
-        
-        let y = 50 + CGFloat(level) * levelSpacing
-        
-        return CGPoint(x: x, y: y)
+        .background(Color.clear)
     }
     
-    private func calculateNodeLevel(_ nodeId: String) -> Int {
-        var level = 0
-        var visited = Set<String>()
-        var currentLevel = [nodeId]
+    private func nodesWithPositions(in size: CGSize) -> [Node] {
+        var positionedNodes = diagram.nodes
         
-        while !currentLevel.isEmpty {
-            var nextLevel = [String]()
+        // Calculate positions for all nodes
+        for i in 0..<positionedNodes.count {
+            let level = calculateNodeLevel(positionedNodes[i])
+            let nodesAtLevel = diagram.nodes.filter { calculateNodeLevel($0) == level }
+            let indexAtLevel = nodesAtLevel.firstIndex(where: { $0.id == positionedNodes[i].id }) ?? 0
             
-            for id in currentLevel {
-                visited.insert(id)
-                
-                // Find all nodes that have edges coming into this node
-                for edge in diagram.edges where edge.to == id && !visited.contains(edge.from) {
-                    nextLevel.append(edge.from)
-                }
-            }
+            // Center the layout in the available space
+            let totalWidth = max(1, nodesAtLevel.count) * Int(nodeSpacing)
+            let startX = (size.width - CGFloat(totalWidth)) / 2 + nodeSpacing / 2
             
-            if nextLevel.isEmpty {
-                break
-            }
+            let x = startX + CGFloat(indexAtLevel) * nodeSpacing
+            let y = CGFloat(level) * levelSpacing + levelSpacing / 2
             
-            level += 1
-            currentLevel = nextLevel
+            positionedNodes[i].position = CGPoint(x: x, y: y)
         }
         
-        return level
+        return positionedNodes
+    }
+    
+    private func calculateNodeLevel(_ node: Node) -> Int {
+        // Find the maximum depth from any root node to this node
+        var maxLevel = 0
+        let rootNodes = findRootNodes()
+        
+        for rootId in rootNodes {
+            let level = calculateLevelFromRoot(rootId, to: node.id, visited: Set<String>())
+            maxLevel = max(maxLevel, level)
+        }
+        
+        return maxLevel
+    }
+    
+    private func findRootNodes() -> [String] {
+        let allNodeIds = Set(diagram.nodes.map { $0.id })
+        let targetNodes = Set(diagram.edges.map { $0.to })
+        return Array(allNodeIds.subtracting(targetNodes))
+    }
+    
+    private func calculateLevelFromRoot(_ rootId: String, to targetId: String, visited: Set<String>) -> Int {
+        if rootId == targetId {
+            return 0
+        }
+        
+        if visited.contains(rootId) {
+            return -1 // Cycle detected
+        }
+        
+        var newVisited = visited
+        newVisited.insert(rootId)
+        
+        var maxLevel = -1
+        for edge in diagram.edges where edge.from == rootId {
+            let level = calculateLevelFromRoot(edge.to, to: targetId, visited: newVisited)
+            if level >= 0 {
+                maxLevel = max(maxLevel, level + 1)
+            }
+        }
+        
+        return maxLevel
     }
 }
 
@@ -216,7 +186,6 @@ public struct EdgeView: View {
                                     y: (fromPoint.y + toPoint.y) / 2
                                 )
                             )
-                            .background(Color.white.opacity(0.7))
                             .padding(4)
                     }
                 }

@@ -109,7 +109,7 @@ public struct Node: Identifiable {
     public let id: String
     public let label: String
     public let shape: NodeShape
-    public let position: CGPoint
+    public var position: CGPoint
     public let style: NodeStyle
     
     public init(id: String, label: String, shape: NodeShape = .rectangle, position: CGPoint = .zero, style: NodeStyle = NodeStyle()) {

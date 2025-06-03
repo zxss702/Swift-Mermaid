@@ -16,7 +16,7 @@ public struct mermindView: View {
             
             switch diagram.type {
             case .flowchart:
-                FlowchartView(diagram: diagram, size: geometry.size)
+                FlowchartView(diagram: diagram)
             case .sequenceDiagram:
                 SequenceDiagramView(diagram: diagram, size: geometry.size)
             case .classDiagram:
