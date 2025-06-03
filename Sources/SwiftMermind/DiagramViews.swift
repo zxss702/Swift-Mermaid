@@ -167,11 +167,13 @@ public struct PieChartView: View {
                                     Text(pieData[index].label)
                                         .font(.system(size: layout.legendFontSize))
                                         .fontWeight(.medium)
-                                        .lineLimit(nil)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
                                         .fixedSize(horizontal: false, vertical: true)
                                     Text("\(pieData[index].value, specifier: "%.0f") (\(calculatePercentage(index: index, data: pieData), specifier: "%.1f")%)")
                                         .font(.system(size: layout.legendFontSize - 2))
                                         .foregroundColor(.secondary)
+                                        .lineLimit(1)
                                 }
                                 Spacer()
                             }
@@ -279,17 +281,17 @@ public struct PieChartView: View {
         let legendItemHeight: CGFloat = dataCount <= 4 ? 40 : (dataCount <= 8 ? 35 : 30)
         let totalLegendHeight = CGFloat(dataCount) * legendItemHeight
         
-        // 确保饼图直径明显大于图例高度，增加倍数到1.5
-        let minPieSize = max(totalLegendHeight * 1.5, 250)
-        let maxPieSize = min(availableHeight * 0.85, availableWidth * 0.6) // 增加饼图占比
-        let pieSize = min(max(minPieSize, 250), maxPieSize)
+        // 计算饼图大小，给图例留出更多空间
+        let minPieSize: CGFloat = 200
+        let maxPieSize = min(availableHeight * 0.85, availableWidth * 0.45) // 减少饼图占比，给图例更多空间
+        let pieSize = min(max(minPieSize, 200), maxPieSize)
         
-        // 计算图例区域宽度，给饼图更多空间
-        let legendMaxWidth = max(availableWidth - pieSize - 50, 120)
+        // 大幅增加图例区域宽度，确保标签能在一行显示
+        let legendMaxWidth = max(availableWidth - pieSize - 30, 200) // 增加最小宽度到200
         
         return PieLayoutConfig(
             pieSize: pieSize,
-            spacing: 25, // 减少间距给饼图更多空间
+            spacing: 20, // 减少间距
             legendSpacing: dataCount <= 4 ? 12 : (dataCount <= 8 ? 10 : 8),
             legendIconSize: dataCount <= 4 ? 18 : (dataCount <= 8 ? 16 : 14),
             legendFontSize: dataCount <= 4 ? 14 : (dataCount <= 8 ? 13 : 12),
