@@ -9,9 +9,19 @@ public struct mermindView: View {
     private let text: String
     private let parser: MermaidParser
     
-    public init(scrollable: Bool, text: String) {
+    private let topIns: CGFloat
+    private let bottomIns: CGFloat
+    private let leftIns: CGFloat
+    private let rightIns: CGFloat
+    
+    
+    public init(scrollable: Bool = false, text: String, topIns: CGFloat = 0, bottomIns: CGFloat = 0, leftIns: CGFloat = 0, rightIns: CGFloat = 0) {
         self.scrollable = scrollable
         self.text = text
+        self.topIns = topIns
+        self.bottomIns = bottomIns
+        self.leftIns = leftIns
+        self.rightIns = rightIns
         self.parser = MermaidParser()
     }
     

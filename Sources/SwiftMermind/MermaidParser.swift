@@ -311,6 +311,23 @@ public class MermaidParser {
                 continue
             }
             
+            // 添加这些跳过条件：
+            // Skip comments
+            if trimmedLine.hasPrefix("%%") {
+                continue
+            }
+            
+            // Skip style definitions
+            if trimmedLine.hasPrefix("classDef") || trimmedLine.hasPrefix("class ") || 
+               trimmedLine.hasPrefix("linkStyle") || trimmedLine.hasPrefix("style") {
+                continue
+            }
+            
+            // Skip subgraph declarations (basic support)
+            if trimmedLine.hasPrefix("subgraph") || trimmedLine == "end" {
+                continue
+            }
+            
             // Parse nodes and edges from the line
             parseFlowchartLine(trimmedLine, nodes: &nodes, edges: &edges, nodeIds: &nodeIds)
         }
