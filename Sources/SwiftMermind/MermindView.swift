@@ -68,12 +68,14 @@ struct ZoomableScrollView: UIViewControllerRepresentable {
     
     let text: String
     let parser: MermaidParser
-    let maxScaler: CGFloat = 2.0
+    let maxScaler: CGFloat = 3.0
     let minScaler: CGFloat = 0
+    
     var topIns: CGFloat = 0
     var bottomIns: CGFloat = 0
     var leftIns: CGFloat = 0
     var rightIns: CGFloat = 0
+    
     var scrollToCenter: Bool = true
     
     func makeUIViewController(context: Context) -> ZoomableScrollViewController {
@@ -81,7 +83,7 @@ struct ZoomableScrollView: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: ZoomableScrollViewController, context: Context) {
-        uiViewController.updateContent(text: text, parser: parser)
+        uiViewController.hostingView.rootView = AnyView(createDiagramView())
     }
     
     func createDiagramView() -> some View {
@@ -225,38 +227,17 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         scrollViewDidZoom(scrollView)
     }
     
-    func updateContent(text: String, parser: MermaidParser) {
-        // 创建新的 ZoomableScrollView 实例来更新内容
-        let newRootView = ZoomableScrollView(
-            text: text,
-            parser: parser,
-            topIns: rootView.topIns,
-            bottomIns: rootView.bottomIns,
-            leftIns: rootView.leftIns,
-            rightIns: rootView.rightIns,
-            scrollToCenter: rootView.scrollToCenter
-        )
-        
-        hostingView.rootView = AnyView(newRootView.createDiagramView())
-        
-        DispatchQueue.main.async {
-            self.viewWillLayoutSubviews()
-        }
-    }
-    
     func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         return hostingView.view
     }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        let safeAreaInsets = scrollView.window?.safeAreaInsets ?? UIEdgeInsets.zero
-        
         scrollView.contentInset.left = max(
-            (view.bounds.width + safeAreaInsets.left + safeAreaInsets.right - hostingView.view.frame.width) / 2,
+            (view.bounds.width - hostingView.view.frame.width) / 2,
             rootView.leftIns
         )
         scrollView.contentInset.top = max(
-            (view.bounds.height + safeAreaInsets.top + safeAreaInsets.bottom - hostingView.view.frame.height) / 2,
+            (view.bounds.height - hostingView.view.frame.height) / 2,
             rootView.topIns
         )
     }
