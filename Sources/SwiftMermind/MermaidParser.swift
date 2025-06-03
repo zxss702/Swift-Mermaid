@@ -417,6 +417,8 @@ public class MermaidParser {
         
         let lines = text.components(separatedBy: .newlines)
         var currentLoop: SequenceLoop?
+        var skipUntilEnd = false
+        var nestingLevel = 0
         
         for (index, line) in lines.enumerated() {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
@@ -426,15 +428,34 @@ public class MermaidParser {
                 continue
             }
             
-            // Parse participant declarations
-            if trimmedLine.hasPrefix("participant ") || trimmedLine.hasPrefix("actor ") {
-                let components = trimmedLine.components(separatedBy: " ")
-                if components.count >= 2 {
-                    let participant = components[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-                    if !participants.contains(participant) {
-                        participants.append(participant)
+            // Handle nested structures (box, alt, opt, loop, etc.)
+            if trimmedLine.hasPrefix("box ") || trimmedLine.hasPrefix("alt ") || 
+               trimmedLine.hasPrefix("opt ") || trimmedLine.hasPrefix("else") ||
+               trimmedLine.hasPrefix("par ") || trimmedLine.hasPrefix("and ") {
+                nestingLevel += 1
+                if trimmedLine.hasPrefix("box ") {
+                    // Extract participants from box declaration
+                    // box Backend Services
+                    continue
+                }
+                continue
+            }
+            
+            if trimmedLine == "end" {
+                if nestingLevel > 0 {
+                    nestingLevel -= 1
+                    if currentLoop != nil && nestingLevel == 0 {
+                        currentLoop!.endIndex = index
+                        loops.append(currentLoop!)
+                        currentLoop = nil
                     }
                 }
+                continue
+            }
+            
+            // Parse participant declarations with alias support
+            if trimmedLine.hasPrefix("participant ") || trimmedLine.hasPrefix("actor ") {
+                parseParticipantDeclaration(trimmedLine, participants: &participants)
                 continue
             }
             
@@ -454,13 +475,7 @@ public class MermaidParser {
             if trimmedLine.hasPrefix("loop ") {
                 let loopText = String(trimmedLine.dropFirst(5)).trimmingCharacters(in: .whitespaces)
                 currentLoop = SequenceLoop(text: loopText, startIndex: index, endIndex: -1, messages: [])
-                continue
-            }
-            
-            if trimmedLine == "end" && currentLoop != nil {
-                currentLoop!.endIndex = index
-                loops.append(currentLoop!)
-                currentLoop = nil
+                nestingLevel += 1
                 continue
             }
             
@@ -485,6 +500,25 @@ public class MermaidParser {
         ]
         
         return MermaidDiagram(type: .sequenceDiagram, rawText: text, parsedData: parsedData)
+    }
+    
+    private func parseParticipantDeclaration(_ line: String, participants: inout [String]) {
+        // Handle both "participant A" and "participant A as Description"
+        let components = line.components(separatedBy: " ")
+        if components.count >= 2 {
+            var participant = components[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            
+            // Handle alias: "participant AuthService as 认证服务"
+            if components.count > 3 && components[2].lowercased() == "as" {
+                // Use the alias part as display name, but keep the original as identifier
+                let alias = components[3...].joined(separator: " ").trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                participant = components[1] // Keep original identifier for message parsing
+            }
+            
+            if !participants.contains(participant) {
+                participants.append(participant)
+            }
+        }
     }
     
     private func parseSequenceMessage(_ line: String, participants: inout [String]) -> SequenceMessage? {

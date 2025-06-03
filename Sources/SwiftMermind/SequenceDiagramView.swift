@@ -29,15 +29,19 @@ public struct SequenceDiagramView: View {
         let activations = getActivations()
         let loops = getLoops()
         
+        // Calculate required height based on content
+        let requiredHeight = calculateRequiredHeight(messageCount: messages.count, noteCount: notes.count)
+        let actualSize = CGSize(width: max(size.width, 800), height: max(size.height, requiredHeight))
+        
         return ZStack {
             // Draw participants and lifelines
             ForEach(0..<participants.count, id: \.self) { index in
-                let x = calculateParticipantX(index: index, count: participants.count)
+                let x = calculateParticipantX(index: index, count: participants.count, totalWidth: actualSize.width)
                 
                 // Lifeline
                 Path { path in
                     path.move(to: CGPoint(x: x, y: participantTopMargin + 50))
-                    path.addLine(to: CGPoint(x: x, y: size.height - 60))
+                    path.addLine(to: CGPoint(x: x, y: actualSize.height - 60))
                 }
                 .stroke(Color.gray, style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
                 
@@ -47,24 +51,24 @@ public struct SequenceDiagramView: View {
                     Spacer()
                     ParticipantBox(name: participants[index])
                 }
-                .frame(height: size.height - 80)
-                .position(x: x, y: size.height / 2)
+                .frame(height: actualSize.height - 80)
+                .position(x: x, y: actualSize.height / 2)
             }
             
             // Draw activation boxes
             ForEach(activations.indices, id: \.self) { index in
                 let activation = activations[index]
                 if let participantIndex = participants.firstIndex(of: activation.participant) {
-                    let x = calculateParticipantX(index: participantIndex, count: participants.count)
+                    let x = calculateParticipantX(index: participantIndex, count: participants.count, totalWidth: actualSize.width)
                     let y = participantTopMargin + 80 + CGFloat(index) * messageSpacing
                     
                     if activation.isActivate {
                         Rectangle()
-            .fill(Color.white)
-            .overlay(
-                Rectangle()
-                    .stroke(Color.black, lineWidth: 1)
-            )
+                            .fill(Color.white)
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.black, lineWidth: 1)
+                            )
                             .frame(width: activationWidth, height: messageSpacing * 2)
                             .position(x: x, y: y + messageSpacing)
                     }
@@ -78,7 +82,7 @@ public struct SequenceDiagramView: View {
                     message: message,
                     participants: participants,
                     index: index,
-                    size: size,
+                    size: actualSize,
                     participantSpacing: participantSpacing,
                     messageSpacing: messageSpacing,
                     participantTopMargin: participantTopMargin
@@ -92,7 +96,7 @@ public struct SequenceDiagramView: View {
                     note: note,
                     participants: participants,
                     messageIndex: index,
-                    size: size,
+                    size: actualSize,
                     participantSpacing: participantSpacing,
                     messageSpacing: messageSpacing,
                     participantTopMargin: participantTopMargin
@@ -112,7 +116,16 @@ public struct SequenceDiagramView: View {
                 )
             }
         }
-        .frame(width: size.width, height: size.height)
+        .frame(width: actualSize.width, height: actualSize.height)
+    }
+    
+    private func calculateRequiredHeight(messageCount: Int, noteCount: Int) -> CGFloat {
+        let baseHeight: CGFloat = 200 // Top and bottom margins
+        let messageHeight = CGFloat(messageCount) * messageSpacing
+        let noteHeight = CGFloat(noteCount) * 30 // Approximate note height
+        let padding: CGFloat = 100 // Extra padding
+        
+        return baseHeight + messageHeight + noteHeight + padding
     }
     
     // MARK: - Data Extraction Methods
@@ -152,15 +165,15 @@ public struct SequenceDiagramView: View {
         return []
     }
     
-    private func calculateParticipantX(index: Int, count: Int) -> CGFloat {
+    private func calculateParticipantX(index: Int, count: Int, totalWidth: CGFloat) -> CGFloat {
         if count <= 1 {
-            return size.width / 2
+            return totalWidth / 2
         }
         
-        let availableWidth = size.width - 100 // Padding on both sides
+        let availableWidth = totalWidth - 100 // Padding on both sides
         let step = min(availableWidth / CGFloat(count - 1), participantSpacing)
-        let totalWidth = step * CGFloat(count - 1)
-        let leftMargin = (size.width - totalWidth) / 2
+        let totalParticipantWidth = step * CGFloat(count - 1)
+        let leftMargin = (totalWidth - totalParticipantWidth) / 2
         
         return leftMargin + CGFloat(index) * step
     }
@@ -201,8 +214,8 @@ struct MessageView: View {
     var body: some View {
         let fromIndex = participants.firstIndex(of: message.from) ?? 0
         let toIndex = participants.firstIndex(of: message.to) ?? 0
-        let fromX = calculateParticipantX(index: fromIndex, count: participants.count)
-        let toX = calculateParticipantX(index: toIndex, count: participants.count)
+        let fromX = calculateParticipantX(index: fromIndex, count: participants.count, totalWidth: size.width)
+        let toX = calculateParticipantX(index: toIndex, count: participants.count, totalWidth: size.width)
         let y = participantTopMargin + 100 + CGFloat(index) * messageSpacing
         
         ZStack {
@@ -232,15 +245,15 @@ struct MessageView: View {
         }
     }
     
-    private func calculateParticipantX(index: Int, count: Int) -> CGFloat {
+    private func calculateParticipantX(index: Int, count: Int, totalWidth: CGFloat) -> CGFloat {
         if count <= 1 {
-            return size.width / 2
+            return totalWidth / 2
         }
         
-        let availableWidth = size.width - 100
+        let availableWidth = totalWidth - 100
         let step = min(availableWidth / CGFloat(count - 1), participantSpacing)
-        let totalWidth = step * CGFloat(count - 1)
-        let leftMargin = (size.width - totalWidth) / 2
+        let totalParticipantWidth = step * CGFloat(count - 1)
+        let leftMargin = (totalWidth - totalParticipantWidth) / 2
         
         return leftMargin + CGFloat(index) * step
     }
@@ -392,15 +405,15 @@ struct NoteView: View {
         }
     }
     
-    private func calculateParticipantX(index: Int, count: Int) -> CGFloat {
+    private func calculateParticipantX(index: Int, count: Int, totalWidth: CGFloat) -> CGFloat {
         if count <= 1 {
-            return size.width / 2
+            return totalWidth / 2
         }
         
-        let availableWidth = size.width - 100
+        let availableWidth = totalWidth - 100
         let step = min(availableWidth / CGFloat(count - 1), participantSpacing)
-        let totalWidth = step * CGFloat(count - 1)
-        let leftMargin = (size.width - totalWidth) / 2
+        let totalParticipantWidth = step * CGFloat(count - 1)
+        let leftMargin = (totalWidth - totalParticipantWidth) / 2
         
         return leftMargin + CGFloat(index) * step
     }
