@@ -179,8 +179,8 @@ struct ZoomableScrollView: UIViewRepresentable {
             }
             
             // 为SwiftUI视图提供更大的空间来计算其理想大小，确保不会截断内容
-            let proposedSize = CGSize(width: .infinity,
-                                    height: .infinity)
+            let proposedSize = CGSize(width: Int.max,
+                                    height: Int.max)
             
             // 临时设置一个大的frame来让SwiftUI计算其内容大小
             hostingView.frame = CGRect(origin: .zero, size: proposedSize)
