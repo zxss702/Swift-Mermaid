@@ -114,6 +114,7 @@ struct ZoomableScrollView: UIViewControllerRepresentable {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .frame(minWidth: 800, minHeight: 800)
     }
 }
 
