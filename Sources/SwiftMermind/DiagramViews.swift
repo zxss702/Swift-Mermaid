@@ -143,12 +143,12 @@ public struct PieChartView: View {
                             )
                             .fill(chineseTraditionalColors[index % chineseTraditionalColors.count])
                             .overlay(
-                                // Add percentage labels on slices
+                                // Add percentage labels on slices with complementary colors
                                 Text("\(calculatePercentage(index: index, data: pieData), specifier: "%.1f")%")
                                     .font(.system(size: layout.labelFontSize))
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(complementaryTextColors[index % complementaryTextColors.count])
+                                    .shadow(color: .white.opacity(0.8), radius: 1, x: 0, y: 0)
                                     .position(calculateLabelPosition(index: index, data: pieData, in: CGRect(x: 0, y: 0, width: layout.pieSize, height: layout.pieSize)))
                             )
                         }
@@ -196,20 +196,36 @@ public struct PieChartView: View {
         .padding()
     }
     
-    // 中式传统深色配色方案（半透明低饱和度）
+    // 中式传统浅色配色方案（高亮度低饱和度）
     private let chineseTraditionalColors: [Color] = [
-        Color(red: 0.45, green: 0.20, blue: 0.18).opacity(0.85), // 深朱红
-        Color(red: 0.15, green: 0.25, blue: 0.45).opacity(0.85), // 深靛青
-        Color(red: 0.18, green: 0.35, blue: 0.18).opacity(0.85), // 深竹绿
-        Color(red: 0.55, green: 0.40, blue: 0.25).opacity(0.85), // 深杏黄
-        Color(red: 0.35, green: 0.25, blue: 0.45).opacity(0.85), // 深紫檀
-        Color(red: 0.50, green: 0.25, blue: 0.35).opacity(0.85), // 深胭脂
-        Color(red: 0.25, green: 0.45, blue: 0.40).opacity(0.85), // 深青瓷
-        Color(red: 0.50, green: 0.45, blue: 0.20).opacity(0.85), // 深明黄
-        Color(red: 0.40, green: 0.25, blue: 0.15).opacity(0.85), // 深赭石
-        Color(red: 0.20, green: 0.25, blue: 0.35).opacity(0.85), // 深藏青
-        Color(red: 0.45, green: 0.25, blue: 0.25).opacity(0.85), // 深枣红
-        Color(red: 0.30, green: 0.35, blue: 0.40).opacity(0.85)  // 深青灰
+        Color(red: 0.95, green: 0.85, blue: 0.83), // 浅朱红
+        Color(red: 0.83, green: 0.88, blue: 0.95), // 浅靛青
+        Color(red: 0.85, green: 0.93, blue: 0.85), // 浅竹绿
+        Color(red: 0.98, green: 0.93, blue: 0.83), // 浅杏黄
+        Color(red: 0.93, green: 0.88, blue: 0.95), // 浅紫檀
+        Color(red: 0.96, green: 0.88, blue: 0.91), // 浅胭脂
+        Color(red: 0.88, green: 0.95, blue: 0.93), // 浅青瓷
+        Color(red: 0.96, green: 0.95, blue: 0.83), // 浅明黄
+        Color(red: 0.93, green: 0.88, blue: 0.83), // 浅赭石
+        Color(red: 0.85, green: 0.88, blue: 0.93), // 浅藏青
+        Color(red: 0.95, green: 0.88, blue: 0.88), // 浅枣红
+        Color(red: 0.90, green: 0.93, blue: 0.95)  // 浅青灰
+    ]
+    
+    // 对应的互补色（用于文字显示）
+    private let complementaryTextColors: [Color] = [
+        Color(red: 0.45, green: 0.20, blue: 0.18), // 深朱红（对应浅朱红）
+        Color(red: 0.15, green: 0.25, blue: 0.45), // 深靛青（对应浅靛青）
+        Color(red: 0.18, green: 0.35, blue: 0.18), // 深竹绿（对应浅竹绿）
+        Color(red: 0.55, green: 0.40, blue: 0.25), // 深杏黄（对应浅杏黄）
+        Color(red: 0.35, green: 0.25, blue: 0.45), // 深紫檀（对应浅紫檀）
+        Color(red: 0.50, green: 0.25, blue: 0.35), // 深胭脂（对应浅胭脂）
+        Color(red: 0.25, green: 0.45, blue: 0.40), // 深青瓷（对应浅青瓷）
+        Color(red: 0.50, green: 0.45, blue: 0.20), // 深明黄（对应浅明黄）
+        Color(red: 0.40, green: 0.25, blue: 0.15), // 深赭石（对应浅赭石）
+        Color(red: 0.20, green: 0.25, blue: 0.35), // 深藏青（对应浅藏青）
+        Color(red: 0.45, green: 0.25, blue: 0.25), // 深枣红（对应浅枣红）
+        Color(red: 0.30, green: 0.35, blue: 0.40)  // 深青灰（对应浅青灰）
     ]
     
     // 布局配置结构

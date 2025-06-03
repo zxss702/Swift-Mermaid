@@ -150,6 +150,8 @@ struct ZoomableScrollView: UIViewRepresentable {
             if let hostingView = hostingController?.view {
                 hostingView.layer.contentsScale = UIScreen.main.scale * scrollView.zoomScale
             }
+            // 缩放时重新居中内容
+            centerContent()
         }
         
         func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
@@ -176,9 +178,9 @@ struct ZoomableScrollView: UIViewRepresentable {
                 return
             }
             
-            // 为SwiftUI视图提供足够大的空间来计算其理想大小
-            let proposedSize = CGSize(width: max(scrollViewSize.width, 800), 
-                                    height: max(scrollViewSize.height, 600))
+            // 为SwiftUI视图提供更大的空间来计算其理想大小，确保不会截断内容
+            let proposedSize = CGSize(width: .infinity,
+                                    height: .infinity)
             
             // 临时设置一个大的frame来让SwiftUI计算其内容大小
             hostingView.frame = CGRect(origin: .zero, size: proposedSize)
@@ -188,13 +190,13 @@ struct ZoomableScrollView: UIViewRepresentable {
             // 使用systemLayoutSizeFitting获取内容的实际大小
             let fittingSize = hostingView.systemLayoutSizeFitting(
                 proposedSize,
-                withHorizontalFittingPriority: .defaultLow,
-                verticalFittingPriority: .defaultLow
+                withHorizontalFittingPriority: .fittingSizeLevel,
+                verticalFittingPriority: .fittingSizeLevel
             )
             
-            // 确保内容大小至少和滚动视图一样大，避免内容过小
-            let contentWidth = max(fittingSize.width, scrollViewSize.width)
-            let contentHeight = max(fittingSize.height, scrollViewSize.height)
+            // 使用实际计算出的大小，添加一些边距确保内容完整显示
+            let contentWidth = max(fittingSize.width + 40, scrollViewSize.width)
+            let contentHeight = max(fittingSize.height + 40, scrollViewSize.height)
             let contentSize = CGSize(width: contentWidth, height: contentHeight)
             
             // 设置最终的frame和contentSize
@@ -208,10 +210,9 @@ struct ZoomableScrollView: UIViewRepresentable {
             scrollView.contentInset = .zero
             scrollView.scrollIndicatorInsets = .zero
             
-            // 只在初始设置时居中内容
-            if isInitialSetup {
-                centerContent()
-                isInitialSetup = false
+            // 每次更新后都重新居中内容
+            DispatchQueue.main.async {
+                self.centerContent()
             }
         }
         
@@ -220,24 +221,35 @@ struct ZoomableScrollView: UIViewRepresentable {
             
             let scrollViewSize = scrollView.bounds.size
             let contentSize = scrollView.contentSize
+            let currentZoom = scrollView.zoomScale
             
-            // 只有当内容小于滚动视图时才居中
-            if contentSize.width < scrollViewSize.width || contentSize.height < scrollViewSize.height {
-                var contentOffset = CGPoint.zero
-                
-                if contentSize.width < scrollViewSize.width {
-                    contentOffset.x = -(scrollViewSize.width - contentSize.width) / 2
-                }
-                
-                if contentSize.height < scrollViewSize.height {
-                    contentOffset.y = -(scrollViewSize.height - contentSize.height) / 2
-                }
-                
-                scrollView.contentOffset = contentOffset
+            // 计算缩放后的实际内容大小
+            let scaledContentSize = CGSize(
+                width: contentSize.width * currentZoom,
+                height: contentSize.height * currentZoom
+            )
+            
+            var contentOffset = CGPoint.zero
+            
+            // 水平居中：如果缩放后的内容宽度小于滚动视图宽度，则居中
+            if scaledContentSize.width <= scrollViewSize.width {
+                contentOffset.x = -(scrollViewSize.width - scaledContentSize.width) / 2 / currentZoom
             } else {
-                // 对于大内容，设置到左上角
-                scrollView.contentOffset = .zero
+                // 内容较大时，确保不超出边界
+                let maxOffsetX = contentSize.width - scrollViewSize.width / currentZoom
+                contentOffset.x = max(0, min(scrollView.contentOffset.x, maxOffsetX))
             }
+            
+            // 垂直居中：如果缩放后的内容高度小于滚动视图高度，则居中
+            if scaledContentSize.height <= scrollViewSize.height {
+                contentOffset.y = -(scrollViewSize.height - scaledContentSize.height) / 2 / currentZoom
+            } else {
+                // 内容较大时，确保不超出边界
+                let maxOffsetY = contentSize.height - scrollViewSize.height / currentZoom
+                contentOffset.y = max(0, min(scrollView.contentOffset.y, maxOffsetY))
+            }
+            
+            scrollView.contentOffset = contentOffset
         }
         
 
