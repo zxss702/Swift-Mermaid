@@ -67,22 +67,22 @@ public struct SwiftMermindExamples {
 extension mermindView {
     
     /// Create a mermindView with a flowchart example
-    public static func flowchartExample() -> mermindView {
-        return mermindView(text: SwiftMermindExamples.flowchartExample)
+    public static func flowchartExample(scrollable: Bool = true) -> mermindView {
+        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.flowchartExample)
     }
     
     /// Create a mermindView with a sequence diagram example
-    public static func sequenceExample() -> mermindView {
-        return mermindView(text: SwiftMermindExamples.sequenceExample)
+    public static func sequenceExample(scrollable: Bool = true) -> mermindView {
+        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.sequenceExample)
     }
     
     /// Create a mermindView with a pie chart example
-    public static func pieExample() -> mermindView {
-        return mermindView(text: SwiftMermindExamples.pieExample)
+    public static func pieExample(scrollable: Bool = true) -> mermindView {
+        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.pieExample)
     }
     
     /// Create a mermindView with a class diagram example
-    public static func classExample() -> mermindView {
-        return mermindView(text: SwiftMermindExamples.classExample)
+    public static func classExample(scrollable: Bool = true) -> mermindView {
+        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.classExample)
     }
 }

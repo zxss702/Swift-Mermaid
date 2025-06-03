@@ -5,19 +5,30 @@ import UIKit
 
 /// A SwiftUI view that renders Mermaid diagrams with zoom and scroll capabilities
 public struct mermindView: View {
+    private let scrollable: Bool
     private let text: String
     private let parser: MermaidParser
     
-    public init(text: String) {
+    public init(scrollable: Bool, text: String) {
+        self.scrollable = scrollable
         self.text = text
         self.parser = MermaidParser()
     }
     
     public var body: some View {
-        #if canImport(UIKit)
-        ZoomableScrollView(text: text, parser: parser)
-        #else
-        // Fallback for macOS without UIKit
+        if scrollable {
+            #if canImport(UIKit)
+            ZoomableScrollView(text: text, parser: parser)
+            #else
+            // Fallback for macOS without UIKit
+            createDiagramView()
+            #endif
+        } else {
+            createDiagramView()
+        }
+    }
+    
+    private func createDiagramView() -> some View {
         GeometryReader { geometry in
             let diagram = parser.parse(text)
             
@@ -46,7 +57,6 @@ public struct mermindView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        #endif
     }
 }
 
@@ -64,8 +74,6 @@ struct ZoomableScrollView: UIViewControllerRepresentable {
     var leftIns: CGFloat = 0
     var rightIns: CGFloat = 0
     var scrollToCenter: Bool = true
-    
-    @Environment(\.safeAreaInsets) var safeAreaInsets
     
     func makeUIViewController(context: Context) -> ZoomableScrollViewController {
         ZoomableScrollViewController(rootView: self)
@@ -240,20 +248,22 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        scrollView.contentInset.left = max(
-            (view.bounds.width + rootView.safeAreaInsets.leading + rootView.safeAreaInsets.trailing - hostingView.view.frame.width) / 2,
-            rootView.leftIns
-        )
-        scrollView.contentInset.top = max(
-            (view.bounds.height + rootView.safeAreaInsets.top + rootView.safeAreaInsets.bottom - hostingView.view.frame.height) / 2,
-            rootView.topIns
-        )
+        if let safeAreaInsets = scrollView.window.safeAreaInsets {
+            scrollView.contentInset.left = max(
+                (view.bounds.width + safeAreaInsets.leading + safeAreaInsets.trailing - hostingView.view.frame.width) / 2,
+                rootView.leftIns
+            )
+            scrollView.contentInset.top = max(
+                (view.bounds.height + safeAreaInsets.top + safeAreaInsets.bottom - hostingView.view.frame.height) / 2,
+                rootView.topIns
+            )
+        }
     }
 }
 #endif
 
 #Preview {
-    mermindView(text: """
+    mermindView(scrollable: true, text: """
     graph TD
         A[Start] --> B{Is it?}
         B -->|Yes| C[OK]
