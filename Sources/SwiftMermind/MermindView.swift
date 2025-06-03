@@ -57,6 +57,7 @@ public struct mermindView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .background(Color.clear)
     }
 }
 
@@ -82,39 +83,53 @@ struct ZoomableScrollView: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: ZoomableScrollViewController, context: Context) {
-        uiViewController.hostingView.rootView = AnyView(createDiagramView())
+        uiViewController.contentSize =  uiViewController.calculateOptimalSize(for: text, parser: parser)
+        uiViewController.hostingView.rootView = AnyView(createDiagramViewWithSize(uiViewController.contentSize))
+        uiViewController.scrollView.contentSize = uiViewController.contentSize
+        
+        DispatchQueue.main.async {
+            uiViewController.viewWillLayoutSubviews()
+        }
     }
     
-    func createDiagramView() -> some View {
-        GeometryReader { geometry in
-            let diagram = parser.parse(text)
-            
+    func createDiagramViewWithSize(_ size: CGSize) -> some View {
+        let diagram = parser.parse(text)
+        
+        return Group {
             switch diagram.type {
             case .flowchart:
                 FlowchartView(diagram: diagram)
+                    .frame(width: size.width, height: size.height)
             case .sequenceDiagram:
-                SequenceDiagramView(diagram: diagram, size: geometry.size)
+                SequenceDiagramView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .classDiagram:
-                ClassDiagramView(diagram: diagram, size: geometry.size)
+                ClassDiagramView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .stateDiagram:
-                StateDiagramView(diagram: diagram, size: geometry.size)
+                StateDiagramView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .gantt:
-                GanttChartView(diagram: diagram, size: geometry.size)
+                GanttChartView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .pie:
-                PieChartView(diagram: diagram, size: geometry.size)
+                PieChartView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .gitGraph:
-                GitGraphView(diagram: diagram, size: geometry.size)
+                GitGraphView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .erDiagram:
-                ERDiagramView(diagram: diagram, size: geometry.size)
+                ERDiagramView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .userJourney:
-                UserJourneyView(diagram: diagram, size: geometry.size)
+                UserJourneyView(diagram: diagram, size: size)
+                    .frame(width: size.width, height: size.height)
             case .unknown:
                 Text("Unsupported diagram type")
                     .foregroundColor(.red)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(width: size.width, height: size.height)
             }
         }
-        .frame(minWidth: 800, minHeight: 800)
     }
 }
 
@@ -122,12 +137,219 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     let rootView: ZoomableScrollView
     var hostingView: UIHostingController<AnyView>
     var scrollView: UIScrollView = UIScrollView()
+    var contentSize: CGSize = CGSize(width: 400, height: 300)
     
     init(rootView: ZoomableScrollView) {
         self.rootView = rootView
-        self.hostingView = UIHostingController(rootView: AnyView(rootView.createDiagramView()))
-        hostingView.view.isUserInteractionEnabled = true
+        self.hostingView = UIHostingController(rootView: AnyView(rootView.createDiagramViewWithSize(self.contentSize)))
         super.init(nibName: nil, bundle: nil)
+        // 计算内容的最佳尺寸
+        self.contentSize = self.calculateOptimalSize(for: rootView.text, parser: rootView.parser)
+        hostingView.view.isUserInteractionEnabled = true
+       
+    }
+    
+    func calculateOptimalSize(for text: String, parser: MermaidParser) -> CGSize {
+        let diagram = parser.parse(text)
+        
+        switch diagram.type {
+        case .flowchart:
+            return calculateFlowchartSize(diagram: diagram)
+            
+        case .sequenceDiagram:
+            return calculateSequenceDiagramSize(diagram: diagram)
+            
+        case .classDiagram:
+            return calculateClassDiagramSize(diagram: diagram)
+            
+        case .gitGraph:
+            return calculateGitGraphSize(diagram: diagram)
+            
+        case .pie:
+            // 饼图通常是正方形
+            return CGSize(width: 400, height: 400)
+            
+        case .gantt:
+            return calculateGanttSize(diagram: diagram)
+            
+        default:
+            // 默认尺寸
+            return CGSize(width: 800, height: 600)
+        }
+    }
+    
+    private func calculateFlowchartSize(diagram: MermaidDiagram) -> CGSize {
+        let nodeSpacing: CGFloat = 150
+        let levelSpacing: CGFloat = 100
+        let minWidth: CGFloat = 400
+        let minHeight: CGFloat = 300
+        let padding: CGFloat = 100
+        
+        // 计算层级结构
+        var levels: [Int: [Node]] = [:]
+        for node in diagram.nodes {
+            let level = calculateNodeLevel(node, diagram: diagram)
+            if levels[level] == nil {
+                levels[level] = []
+            }
+            levels[level]?.append(node)
+        }
+        
+        // 计算所需宽度（基于最宽的层级）
+        let maxNodesInLevel = levels.values.map { $0.count }.max() ?? 1
+        let requiredWidth = CGFloat(maxNodesInLevel) * nodeSpacing + padding
+        
+        // 计算所需高度（基于层级数量）
+        let levelCount = levels.keys.count
+        let requiredHeight = CGFloat(levelCount) * levelSpacing + padding
+        
+        return CGSize(
+            width: max(minWidth, requiredWidth),
+            height: max(minHeight, requiredHeight)
+        )
+    }
+    
+    private func calculateSequenceDiagramSize(diagram: MermaidDiagram) -> CGSize {
+        let participantSpacing: CGFloat = 150
+        let messageSpacing: CGFloat = 50
+        let baseHeight: CGFloat = 200
+        let padding: CGFloat = 100
+        
+        // 获取参与者数量
+        let participants = diagram.parsedData["participants"] as? [String] ?? []
+        let participantCount = max(2, participants.count)
+        
+        // 获取消息数量
+        let messages = diagram.parsedData["messages"] as? [Any] ?? []
+        let messageCount = messages.count
+        
+        // 获取注释数量
+        let notes = diagram.parsedData["notes"] as? [Any] ?? []
+        let noteCount = notes.count
+        
+        // 计算宽度
+        let requiredWidth = CGFloat(participantCount - 1) * participantSpacing + padding * 2
+        
+        // 计算高度
+        let messageHeight = CGFloat(messageCount) * messageSpacing
+        let noteHeight = CGFloat(noteCount) * 30
+        let requiredHeight = baseHeight + messageHeight + noteHeight + padding
+        
+        return CGSize(
+            width: max(800, requiredWidth),
+            height: max(400, requiredHeight)
+        )
+    }
+    
+    private func calculateClassDiagramSize(diagram: MermaidDiagram) -> CGSize {
+        let classWidth: CGFloat = 200
+        let classHeight: CGFloat = 150
+        let spacing: CGFloat = 50
+        let padding: CGFloat = 100
+        
+        // 从 parsedData 或 nodes 中获取类的数量
+        let classes = diagram.parsedData["classes"] as? [Any] ?? []
+        let classCount = max(classes.count, diagram.nodes.count)
+        
+        if classCount == 0 {
+            return CGSize(width: 800, height: 600)
+        }
+        
+        // 简单的网格布局计算
+        let cols = Int(ceil(sqrt(Double(classCount))))
+        let rows = Int(ceil(Double(classCount) / Double(cols)))
+        
+        let requiredWidth = CGFloat(cols) * (classWidth + spacing) - spacing + padding * 2
+        let requiredHeight = CGFloat(rows) * (classHeight + spacing) - spacing + padding * 2
+        
+        return CGSize(
+            width: max(800, requiredWidth),
+            height: max(600, requiredHeight)
+        )
+    }
+    
+    private func calculateGitGraphSize(diagram: MermaidDiagram) -> CGSize {
+        let commitSpacing: CGFloat = 100
+        let branchSpacing: CGFloat = 80
+        let padding: CGFloat = 100
+        
+        let commitCount = diagram.nodes.count
+        if commitCount == 0 {
+            return CGSize(width: 800, height: 400)
+        }
+        
+        // 估算分支数量（简化计算）
+        let branchCount = max(1, diagram.edges.map { [$0.from, $0.to] }.flatMap { $0 }.count / 3)
+        
+        let requiredWidth = CGFloat(commitCount) * commitSpacing + padding * 2
+        let requiredHeight = CGFloat(branchCount) * branchSpacing + padding * 2
+        
+        return CGSize(
+            width: max(800, requiredWidth),
+            height: max(400, requiredHeight)
+        )
+    }
+    
+    private func calculateGanttSize(diagram: MermaidDiagram) -> CGSize {
+        let taskSpacing: CGFloat = 100
+        let taskHeight: CGFloat = 40
+        let padding: CGFloat = 100
+        
+        // 从 parsedData 中获取任务信息，或使用节点数量作为备选
+        let tasks = diagram.parsedData["tasks"] as? [Any] ?? []
+        let taskCount = max(tasks.count, diagram.nodes.count)
+        
+        if taskCount == 0 {
+            return CGSize(width: 800, height: 400)
+        }
+        
+        // 甘特图需要更多水平空间来显示时间轴
+        let requiredWidth = max(600, CGFloat(taskCount) * taskSpacing + padding * 2)
+        let requiredHeight = CGFloat(taskCount) * taskHeight + padding * 2
+        
+        return CGSize(
+            width: requiredWidth,
+            height: max(400, requiredHeight)
+        )
+    }
+    
+    private func calculateNodeLevel(_ node: Node, diagram: MermaidDiagram) -> Int {
+        // 找到所有根节点（没有入边的节点）
+        let allNodeIds = Set(diagram.nodes.map { $0.id })
+        let targetNodes = Set(diagram.edges.map { $0.to })
+        let rootNodes = Array(allNodeIds.subtracting(targetNodes))
+        
+        // 计算从任意根节点到当前节点的最大深度
+        var maxLevel = 0
+        for rootId in rootNodes {
+            let level = calculateLevelFromRoot(rootId, to: node.id, diagram: diagram, visited: Set<String>())
+            maxLevel = max(maxLevel, level)
+        }
+        
+        return maxLevel
+    }
+    
+    private func calculateLevelFromRoot(_ rootId: String, to targetId: String, diagram: MermaidDiagram, visited: Set<String>) -> Int {
+        if rootId == targetId {
+            return 0
+        }
+        
+        if visited.contains(rootId) {
+            return -1 // 检测到循环
+        }
+        
+        var newVisited = visited
+        newVisited.insert(rootId)
+        
+        var maxLevel = -1
+        for edge in diagram.edges where edge.from == rootId {
+            let level = calculateLevelFromRoot(edge.to, to: targetId, diagram: diagram, visited: newVisited)
+            if level >= 0 {
+                maxLevel = max(maxLevel, level + 1)
+            }
+        }
+        
+        return maxLevel
     }
     
     required init?(coder: NSCoder) {
@@ -159,12 +381,17 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         scrollView.addSubview(hostingView.view)
         hostingView.view.translatesAutoresizingMaskIntoConstraints = false
-        hostingView.sizingOptions = .intrinsicContentSize
         
+        // 使用固定的内容尺寸，避免 GeometryReader 冲突
         NSLayoutConstraint.activate([
-            scrollView.contentLayoutGuide.heightAnchor.constraint(equalTo: hostingView.view.heightAnchor),
-            scrollView.contentLayoutGuide.widthAnchor.constraint(equalTo: hostingView.view.widthAnchor)
+            hostingView.view.widthAnchor.constraint(equalToConstant: contentSize.width),
+            hostingView.view.heightAnchor.constraint(equalToConstant: contentSize.height),
+            hostingView.view.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            hostingView.view.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor)
         ])
+        
+        // 设置 scrollView 的 contentSize
+        scrollView.contentSize = contentSize
         
         scrollView.contentInset.top = rootView.topIns
         scrollView.contentInset.bottom = rootView.bottomIns
@@ -177,8 +404,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         if rootView.minScaler == 0 {
             let minScaler = min(
-                (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
-                (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+                (view.bounds.width - rootView.leftIns - rootView.rightIns) / contentSize.width,
+                (view.bounds.height - rootView.topIns - rootView.bottomIns) / contentSize.height
             )
             
             if scrollView.minimumZoomScale != minScaler {
@@ -192,8 +419,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         if rootView.scrollToCenter {
             scrollView.zoomScale = min(
-                (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
-                (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+                (view.bounds.width - rootView.leftIns - rootView.rightIns) / contentSize.width,
+                (view.bounds.height - rootView.topIns - rootView.bottomIns) / contentSize.height
             )
         }
     }
@@ -203,8 +430,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         if rootView.minScaler == 0 {
             let minScaler = min(
-                (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
-                (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+                (view.bounds.width - rootView.leftIns - rootView.rightIns) / contentSize.width,
+                (view.bounds.height - rootView.topIns - rootView.bottomIns) / contentSize.height
             )
             
             if scrollView.minimumZoomScale != minScaler {
@@ -214,8 +441,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
                 if scrollView.zoomScale < minScaler {
                     if rootView.scrollToCenter {
                         scrollView.zoomScale = min(
-                            (view.bounds.width - rootView.leftIns - rootView.rightIns) / hostingView.view.bounds.width,
-                            (view.bounds.height - rootView.topIns - rootView.bottomIns) / hostingView.view.bounds.height
+                            (view.bounds.width - rootView.leftIns - rootView.rightIns) / contentSize.width,
+                            (view.bounds.height - rootView.topIns - rootView.bottomIns) / contentSize.height
                         )
                     } else {
                         scrollView.zoomScale = scrollView.minimumZoomScale
@@ -232,12 +459,18 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        let safeAreaInsets = scrollView.window?.safeAreaInsets ?? UIEdgeInsets.zero
+        let scaledContentSize = CGSize(
+            width: contentSize.width * scrollView.zoomScale,
+            height: contentSize.height * scrollView.zoomScale
+        )
+        
         scrollView.contentInset.left = max(
-            (view.bounds.width - hostingView.view.frame.width) / 2,
+            (view.bounds.width + safeAreaInsets.left + safeAreaInsets.right - scaledContentSize.width) / 2,
             rootView.leftIns
         )
         scrollView.contentInset.top = max(
-            (view.bounds.height - hostingView.view.frame.height) / 2,
+            (view.bounds.height + safeAreaInsets.top + safeAreaInsets.bottom - scaledContentSize.height) / 2,
             rootView.topIns
         )
     }

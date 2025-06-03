@@ -25,7 +25,6 @@ public struct FlowchartView: View {
                 }
             }
         }
-        .background(Color.clear)
     }
     
     private func nodesWithPositions(in size: CGSize) -> [Node] {
