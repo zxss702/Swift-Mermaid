@@ -139,6 +139,7 @@ struct ZoomableScrollView: UIViewRepresentable {
     class Coordinator: NSObject, UIScrollViewDelegate {
         var hostingController: UIHostingController<AnyView>?
         var scrollView: UIScrollView?
+        private var isInitialSetup = true
         
         func viewForZooming(in scrollView: UIScrollView) -> UIView? {
             return hostingController?.view
@@ -149,7 +150,8 @@ struct ZoomableScrollView: UIViewRepresentable {
             if let hostingView = hostingController?.view {
                 hostingView.layer.contentsScale = UIScreen.main.scale * scrollView.zoomScale
             }
-            centerContent()
+            // 只在缩放时调整内容位置，避免强制居中
+            adjustContentInsets()
         }
         
         func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
@@ -160,7 +162,7 @@ struct ZoomableScrollView: UIViewRepresentable {
                 hostingView.layer.contentsScale = UIScreen.main.scale * scale
                 hostingView.setNeedsDisplay()
             }
-            centerContent()
+            adjustContentInsets()
         }
         
         func updateContentSize() {
@@ -192,8 +194,13 @@ struct ZoomableScrollView: UIViewRepresentable {
             // Ensure proper scaling for crisp rendering
             hostingView.layer.contentsScale = UIScreen.main.scale
             
-            // Center the content
-            centerContent()
+            // 只在初始设置时居中内容
+            if isInitialSetup {
+                centerContent()
+                isInitialSetup = false
+            } else {
+                adjustContentInsets()
+            }
         }
         
         private func centerContent() {
@@ -210,25 +217,50 @@ struct ZoomableScrollView: UIViewRepresentable {
             )
             
             // Calculate content offset to center the content
-            var contentOffset = scrollView.contentOffset
+            var contentOffset = CGPoint.zero
             
             if scaledContentSize.width < scrollViewSize.width {
                 contentOffset.x = -(scrollViewSize.width - scaledContentSize.width) / 2
-            } else {
-                // Ensure content offset is within bounds
-                let maxOffsetX = scaledContentSize.width - scrollViewSize.width
-                contentOffset.x = max(0, min(contentOffset.x, maxOffsetX))
             }
             
             if scaledContentSize.height < scrollViewSize.height {
                 contentOffset.y = -(scrollViewSize.height - scaledContentSize.height) / 2
-            } else {
-                // Ensure content offset is within bounds
-                let maxOffsetY = scaledContentSize.height - scrollViewSize.height
-                contentOffset.y = max(0, min(contentOffset.y, maxOffsetY))
             }
             
             scrollView.contentOffset = contentOffset
+        }
+        
+        // 新方法：调整内容边距而不强制居中
+        private func adjustContentInsets() {
+            guard let scrollView = scrollView else { return }
+            
+            let scrollViewSize = scrollView.bounds.size
+            let contentSize = scrollView.contentSize
+            let zoomScale = scrollView.zoomScale
+            
+            // Calculate the actual size of content after zoom
+            let scaledContentSize = CGSize(
+                width: contentSize.width * zoomScale,
+                height: contentSize.height * zoomScale
+            )
+            
+            // 计算内容边距，让小内容可以居中，但不强制移动大内容
+            var contentInset = UIEdgeInsets.zero
+            
+            if scaledContentSize.width < scrollViewSize.width {
+                let horizontalInset = (scrollViewSize.width - scaledContentSize.width) / 2
+                contentInset.left = horizontalInset
+                contentInset.right = horizontalInset
+            }
+            
+            if scaledContentSize.height < scrollViewSize.height {
+                let verticalInset = (scrollViewSize.height - scaledContentSize.height) / 2
+                contentInset.top = verticalInset
+                contentInset.bottom = verticalInset
+            }
+            
+            scrollView.contentInset = contentInset
+            scrollView.scrollIndicatorInsets = contentInset
         }
     }
 }
