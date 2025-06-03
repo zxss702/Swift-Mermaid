@@ -511,7 +511,7 @@ public class MermaidParser {
             // Handle alias: "participant AuthService as 认证服务"
             if components.count > 3 && components[2].lowercased() == "as" {
                 // Use the alias part as display name, but keep the original as identifier
-                let alias = components[3...].joined(separator: " ").trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+//                _ = components[3...].joined(separator: " ").trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
                 participant = components[1] // Keep original identifier for message parsing
             }
             

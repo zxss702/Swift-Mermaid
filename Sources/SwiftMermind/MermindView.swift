@@ -57,6 +57,7 @@ public struct mermindView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .background(Color.clear)
     }
 }
 
@@ -248,16 +249,16 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        if let safeAreaInsets = scrollView.window?.safeAreaInsets {
-            scrollView.contentInset.left = max(
-                (view.bounds.width + safeAreaInsets.left + safeAreaInsets.right - hostingView.view.frame.width) / 2,
-                rootView.leftIns
-            )
-            scrollView.contentInset.top = max(
-                (view.bounds.height + safeAreaInsets.top + safeAreaInsets.bottom - hostingView.view.frame.height) / 2,
-                rootView.topIns
-            )
-        }
+        let safeAreaInsets = scrollView.window?.safeAreaInsets ?? UIEdgeInsets.zero
+        
+        scrollView.contentInset.left = max(
+            (view.bounds.width + safeAreaInsets.left + safeAreaInsets.right - hostingView.view.frame.width) / 2,
+            rootView.leftIns
+        )
+        scrollView.contentInset.top = max(
+            (view.bounds.height + safeAreaInsets.top + safeAreaInsets.bottom - hostingView.view.frame.height) / 2,
+            rootView.topIns
+        )
     }
 }
 #endif
