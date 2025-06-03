@@ -65,31 +65,40 @@ struct ZoomableScrollView: UIViewRepresentable {
         scrollView.showsVerticalScrollIndicator = true
         scrollView.showsHorizontalScrollIndicator = true
         scrollView.backgroundColor = UIColor.clear
+        scrollView.bouncesZoom = true
+        scrollView.bounces = true
         
         // Create the content view
-         let hostingController = UIHostingController(rootView: AnyView(createDiagramView()))
-         hostingController.view.backgroundColor = UIColor.clear
-         
-         // Add the hosting controller's view to scroll view
-         scrollView.addSubview(hostingController.view)
-         
-         // Store the hosting controller in the coordinator
-         context.coordinator.hostingController = hostingController
-         context.coordinator.scrollView = scrollView
+        let hostingController = UIHostingController(rootView: AnyView(createDiagramView()))
+        hostingController.view.backgroundColor = UIColor.clear
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Add the hosting controller's view to scroll view
+        scrollView.addSubview(hostingController.view)
+        
+        // Store the hosting controller in the coordinator
+        context.coordinator.hostingController = hostingController
+        context.coordinator.scrollView = scrollView
+        
+        // Initial setup
+        DispatchQueue.main.async {
+            context.coordinator.updateContentSize()
+        }
         
         return scrollView
     }
     
     func updateUIView(_ scrollView: UIScrollView, context: Context) {
-         // Update the diagram when text changes
-         let newDiagramView = AnyView(createDiagramView())
-         context.coordinator.hostingController?.rootView = newDiagramView
-         
-         // Recalculate content size
-         DispatchQueue.main.async {
-             context.coordinator.updateContentSize()
-         }
-     }
+        // Update the diagram when text changes
+        let newDiagramView = AnyView(createDiagramView())
+        context.coordinator.hostingController?.rootView = newDiagramView
+        
+        // Reset zoom and recalculate content size
+        scrollView.zoomScale = 1.0
+        DispatchQueue.main.async {
+            context.coordinator.updateContentSize()
+        }
+    }
     
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -136,6 +145,10 @@ struct ZoomableScrollView: UIViewRepresentable {
         }
         
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
+            // Update content scale for crisp rendering during zoom
+            if let hostingView = hostingController?.view {
+                hostingView.layer.contentsScale = UIScreen.main.scale * scrollView.zoomScale
+            }
             centerContent()
         }
         
@@ -143,30 +156,43 @@ struct ZoomableScrollView: UIViewRepresentable {
             // Ensure text remains crisp after zooming
             if let hostingView = hostingController?.view {
                 hostingView.layer.shouldRasterize = false
-                hostingView.contentScaleFactor = UIScreen.main.scale * scale
+                // Force re-render at the new scale for crisp text
+                hostingView.layer.contentsScale = UIScreen.main.scale * scale
+                hostingView.setNeedsDisplay()
             }
+            centerContent()
         }
         
         func updateContentSize() {
             guard let scrollView = scrollView,
                   let hostingView = hostingController?.view else { return }
             
-            // Calculate the intrinsic content size
-            let targetSize = CGSize(width: UIView.layoutFittingCompressedSize.width,
-                                  height: UIView.layoutFittingCompressedSize.height)
-            let contentSize = hostingView.systemLayoutSizeFitting(targetSize,
-                                                                withHorizontalFittingPriority: .fittingSizeLevel,
-                                                                verticalFittingPriority: .fittingSizeLevel)
+            // Force layout update
+            hostingView.setNeedsLayout()
+            hostingView.layoutIfNeeded()
             
-            // Set a minimum size to ensure proper display
-            let minSize = CGSize(width: max(contentSize.width, 400),
-                               height: max(contentSize.height, 300))
+            // Calculate content size based on SwiftUI view's intrinsic size
+            let maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, 
+                               height: CGFloat.greatestFiniteMagnitude)
+            let fittingSize = hostingView.systemLayoutSizeFitting(
+                maxSize,
+                withHorizontalFittingPriority: .defaultLow,
+                verticalFittingPriority: .defaultLow
+            )
+            
+            // Ensure minimum size for proper display
+            let contentWidth = max(fittingSize.width, 400)
+            let contentHeight = max(fittingSize.height, 300)
+            let contentSize = CGSize(width: contentWidth, height: contentHeight)
             
             // Update frame and content size
-            hostingView.frame = CGRect(origin: .zero, size: minSize)
-            scrollView.contentSize = minSize
+            hostingView.frame = CGRect(origin: .zero, size: contentSize)
+            scrollView.contentSize = contentSize
             
-            // Center the content initially
+            // Ensure proper scaling for crisp rendering
+            hostingView.layer.contentsScale = UIScreen.main.scale
+            
+            // Center the content
             centerContent()
         }
         
@@ -177,22 +203,32 @@ struct ZoomableScrollView: UIViewRepresentable {
             let contentSize = scrollView.contentSize
             let zoomScale = scrollView.zoomScale
             
-            let scaledContentSize = CGSize(width: contentSize.width * zoomScale,
-                                         height: contentSize.height * zoomScale)
+            // Calculate the actual size of content after zoom
+            let scaledContentSize = CGSize(
+                width: contentSize.width * zoomScale,
+                height: contentSize.height * zoomScale
+            )
             
-            var contentInset = UIEdgeInsets.zero
+            // Calculate content offset to center the content
+            var contentOffset = scrollView.contentOffset
             
             if scaledContentSize.width < scrollViewSize.width {
-                contentInset.left = (scrollViewSize.width - scaledContentSize.width) / 2
-                contentInset.right = contentInset.left
+                contentOffset.x = -(scrollViewSize.width - scaledContentSize.width) / 2
+            } else {
+                // Ensure content offset is within bounds
+                let maxOffsetX = scaledContentSize.width - scrollViewSize.width
+                contentOffset.x = max(0, min(contentOffset.x, maxOffsetX))
             }
             
             if scaledContentSize.height < scrollViewSize.height {
-                contentInset.top = (scrollViewSize.height - scaledContentSize.height) / 2
-                contentInset.bottom = contentInset.top
+                contentOffset.y = -(scrollViewSize.height - scaledContentSize.height) / 2
+            } else {
+                // Ensure content offset is within bounds
+                let maxOffsetY = scaledContentSize.height - scrollViewSize.height
+                contentOffset.y = max(0, min(contentOffset.y, maxOffsetY))
             }
             
-            scrollView.contentInset = contentInset
+            scrollView.contentOffset = contentOffset
         }
     }
 }
