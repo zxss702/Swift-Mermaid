@@ -27,7 +27,7 @@
 使用 Swift Package Manager 将 SwiftMermind 添加到您的项目中：
 
 1.  在 Xcode 中，前往 File → Add Package Dependencies
-2.  输入仓库 URL: `https://github.com/yourusername/SwiftMermind`
+2.  输入仓库 URL: `https://github.com/zxss702/SwiftMermind`
 3.  选择您要使用的版本
 4.  将包添加到您的目标 (target)
 
@@ -35,7 +35,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/SwiftMermind", from: "1.0.0")
+    .package(url: "https://github.com/zxss702/SwiftMermind", from: "1.0.0")
 ]
 ```
 
@@ -62,6 +62,22 @@ struct ContentView: View {
         .frame(width: 400, height: 300)
     }
 }
+```
+
+### 缩放和滚动功能
+
+`mermindView` 现在支持缩放和滚动功能（iOS 平台）：
+
+- **缩放范围**: 0.5x 到 3.0x
+- **自动居中**: 内容自动居中显示
+- **响应式**: 文本变化时自动调整内容大小
+- **清晰渲染**: 缩放后保持文字清晰
+- **跨平台**: iOS 支持缩放滚动，macOS 使用标准视图
+
+```swift
+// 图表会自动适应内容大小，支持手势缩放和滚动
+mermindView(text: complexDiagramText)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
 ```
 
 ### 流程图示例
