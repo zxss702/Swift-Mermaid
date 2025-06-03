@@ -248,9 +248,9 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        if let safeAreaInsets = scrollView.window.safeAreaInsets {
+        if let safeAreaInsets = scrollView.window?.safeAreaInsets {
             scrollView.contentInset.left = max(
-                (view.bounds.width + safeAreaInsets.leading + safeAreaInsets.trailing - hostingView.view.frame.width) / 2,
+                (view.bounds.width + safeAreaInsets.left + safeAreaInsets.right - hostingView.view.frame.width) / 2,
                 rootView.leftIns
             )
             scrollView.contentInset.top = max(
