@@ -119,40 +119,68 @@ public struct PieChartView: View {
     
     public var body: some View {
         let pieData = extractPieData()
+        let title = extractTitle()
         
-        VStack {
-            Text("Pie Chart")
-                .font(.title2)
-                .fontWeight(.bold)
+        VStack(spacing: 20) {
+            // Title
+            if !title.isEmpty {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+            }
             
             if !pieData.isEmpty {
-                ZStack {
-                    ForEach(0..<pieData.count, id: \.self) { index in
-                        PieSlice(
-                            startAngle: calculateStartAngle(index: index, data: pieData),
-                            endAngle: calculateEndAngle(index: index, data: pieData)
-                        )
-                        .fill(pieColors[index % pieColors.count])
+                HStack(spacing: 30) {
+                    // Pie Chart
+                    ZStack {
+                        ForEach(0..<pieData.count, id: \.self) { index in
+                            PieSlice(
+                                startAngle: calculateStartAngle(index: index, data: pieData),
+                                endAngle: calculateEndAngle(index: index, data: pieData)
+                            )
+                            .fill(pieColors[index % pieColors.count])
+                            .overlay(
+                                // Add percentage labels on slices
+                                Text("\(calculatePercentage(index: index, data: pieData), specifier: "%.1f")%")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    .position(calculateLabelPosition(index: index, data: pieData, in: CGRect(x: 0, y: 0, width: min(size.width, size.height) * 0.5, height: min(size.width, size.height) * 0.5)))
+                            )
+                        }
                     }
-                }
-                .frame(width: min(size.width, size.height) * 0.6)
-                
-                // Legend
-                VStack(alignment: .leading) {
-                    ForEach(0..<pieData.count, id: \.self) { index in
-                        HStack {
-                            Rectangle()
-                                .fill(pieColors[index % pieColors.count])
-                                .frame(width: 16, height: 16)
-                            
-                            Text("\(pieData[index].label): \(pieData[index].value, specifier: "%.1f")")
-                                .font(.caption)
+                    .frame(width: min(size.width, size.height) * 0.5, height: min(size.width, size.height) * 0.5)
+                    
+                    // Legend
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(0..<pieData.count, id: \.self) { index in
+                            HStack(spacing: 8) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(pieColors[index % pieColors.count])
+                                    .frame(width: 16, height: 16)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(pieData[index].label)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                    Text("\(pieData[index].value, specifier: "%.0f") (\(calculatePercentage(index: index, data: pieData), specifier: "%.1f")%)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                         }
                     }
                 }
             } else {
-                Text("No data to display")
-                    .foregroundColor(.gray)
+                VStack {
+                    Image(systemName: "chart.pie")
+                        .font(.system(size: 50))
+                        .foregroundColor(.gray)
+                    Text("No data to display")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
             }
         }
         .frame(width: size.width, height: size.height)
@@ -160,7 +188,8 @@ public struct PieChartView: View {
     }
     
     private let pieColors: [Color] = [
-        .blue, .red, .green, .orange, .purple, .pink, .yellow, .cyan
+        .blue, .red, .green, .orange, .purple, .pink, .yellow, .cyan,
+        .mint, .indigo, .brown, .teal
     ]
     
     private struct PieData {
@@ -168,7 +197,21 @@ public struct PieChartView: View {
         let value: Double
     }
     
+    private func extractTitle() -> String {
+        if let title = diagram.parsedData["title"] as? String {
+            return title
+        }
+        return ""
+    }
+    
     private func extractPieData() -> [PieData] {
+        // Try to get data from parsed data first
+        if let dataDict = diagram.parsedData["data"] as? [String: Double] {
+            return dataDict.map { PieData(label: $0.key, value: $0.value) }
+                          .sorted { $0.value > $1.value } // Sort by value descending
+        }
+        
+        // Fallback to parsing raw text
         let lines = diagram.rawText.components(separatedBy: .newlines)
         var data: [PieData] = []
         
@@ -189,7 +232,27 @@ public struct PieChartView: View {
             }
         }
         
-        return data
+        return data.sorted { $0.value > $1.value }
+    }
+    
+    private func calculatePercentage(index: Int, data: [PieData]) -> Double {
+        let total = data.reduce(0) { $0 + $1.value }
+        return total > 0 ? (data[index].value / total * 100) : 0
+    }
+    
+    private func calculateLabelPosition(index: Int, data: [PieData], in rect: CGRect) -> CGPoint {
+        let total = data.reduce(0) { $0 + $1.value }
+        let startAngle = data.prefix(index).reduce(0) { $0 + $1.value } / total * 360 - 90
+        let endAngle = data.prefix(index + 1).reduce(0) { $0 + $1.value } / total * 360 - 90
+        let midAngle = (startAngle + endAngle) / 2
+        
+        let radius = min(rect.width, rect.height) / 2 * 0.7 // Position labels at 70% of radius
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        
+        let x = center.x + radius * cos(midAngle * .pi / 180)
+        let y = center.y + radius * sin(midAngle * .pi / 180)
+        
+        return CGPoint(x: x, y: y)
     }
     
     private func calculateStartAngle(index: Int, data: [PieData]) -> Angle {

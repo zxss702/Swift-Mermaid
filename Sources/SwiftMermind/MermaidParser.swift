@@ -592,8 +592,59 @@ public class MermaidParser {
     }
     
     private func parsePieChart(_ text: String) -> MermaidDiagram {
-        // Simplified implementation
-        return MermaidDiagram(type: .pie, rawText: text)
+        var title = ""
+        var data: [String: Double] = [:]
+        
+        let lines = text.components(separatedBy: .newlines)
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            // Skip empty lines
+            if trimmedLine.isEmpty {
+                continue
+            }
+            
+            // Parse title
+            if trimmedLine.lowercased().hasPrefix("pie title ") {
+                title = String(trimmedLine.dropFirst(10)).trimmingCharacters(in: .whitespaces)
+                // Remove quotes if present
+                if (title.hasPrefix("\"") && title.hasSuffix("\"")) || (title.hasPrefix("'") && title.hasSuffix("'")) {
+                    title = String(title.dropFirst().dropLast())
+                }
+                continue
+            }
+            
+            // Parse pie declaration
+            if trimmedLine.lowercased() == "pie" {
+                continue
+            }
+            
+            // Parse data lines: "Label" : value
+            if trimmedLine.contains(":") {
+                let parts = trimmedLine.components(separatedBy: ":")
+                if parts.count >= 2 {
+                    var label = parts[0].trimmingCharacters(in: .whitespaces)
+                    let valueString = parts[1].trimmingCharacters(in: .whitespaces)
+                    
+                    // Remove quotes from label
+                    if (label.hasPrefix("\"") && label.hasSuffix("\"")) || (label.hasPrefix("'") && label.hasSuffix("'")) {
+                        label = String(label.dropFirst().dropLast())
+                    }
+                    
+                    if let value = Double(valueString) {
+                        data[label] = value
+                    }
+                }
+            }
+        }
+        
+        let parsedData: [String: Any] = [
+            "title": title,
+            "data": data
+        ]
+        
+        return MermaidDiagram(type: .pie, rawText: text, parsedData: parsedData)
     }
     
     private func parseGitGraph(_ text: String) -> MermaidDiagram {

@@ -123,4 +123,83 @@ final class SwiftMermindTests: XCTestCase {
             XCTFail("Activations not found in parsed data")
         }
     }
+    
+    func testPieChartParsing() throws {
+        let parser = MermaidParser()
+        
+        // Test basic pie chart
+        let pieText1 = """
+        pie title NETFLIX
+            "Time spent looking for movie" : 90
+            "Time spent watching it" : 10
+        """
+        
+        let diagram1 = parser.parse(pieText1)
+        XCTAssertEqual(diagram1.type, .pie)
+        
+        // Check title parsing
+        if let title = diagram1.parsedData["title"] as? String {
+            XCTAssertEqual(title, "NETFLIX")
+        } else {
+            XCTFail("Title not found in parsed data")
+        }
+        
+        // Check data parsing
+        if let data = diagram1.parsedData["data"] as? [String: Double] {
+            XCTAssertEqual(data.count, 2)
+            XCTAssertEqual(data["Time spent looking for movie"], 90.0)
+            XCTAssertEqual(data["Time spent watching it"], 10.0)
+        } else {
+            XCTFail("Data not found in parsed data")
+        }
+        
+        // Test pie chart with quoted title
+        let pieText2 = """
+        pie title "Pet Sales"
+            "Dogs" : 386
+            "Cats" : 85
+            "Rats" : 15
+        """
+        
+        let diagram2 = parser.parse(pieText2)
+        XCTAssertEqual(diagram2.type, .pie)
+        
+        // Check quoted title parsing
+        if let title = diagram2.parsedData["title"] as? String {
+            XCTAssertEqual(title, "Pet Sales")
+        } else {
+            XCTFail("Quoted title not found in parsed data")
+        }
+        
+        // Check multiple data entries
+        if let data = diagram2.parsedData["data"] as? [String: Double] {
+            XCTAssertEqual(data.count, 3)
+            XCTAssertEqual(data["Dogs"], 386.0)
+            XCTAssertEqual(data["Cats"], 85.0)
+            XCTAssertEqual(data["Rats"], 15.0)
+        } else {
+            XCTFail("Multiple data entries not found in parsed data")
+        }
+        
+        // Test pie chart without title
+        let pieText3 = """
+        pie
+            "Category A" : 50
+            "Category B" : 30
+            "Category C" : 20
+        """
+        
+        let diagram3 = parser.parse(pieText3)
+        XCTAssertEqual(diagram3.type, .pie)
+        
+        // Check that data is still parsed without title
+        if let data = diagram3.parsedData["data"] as? [String: Double] {
+            XCTAssertEqual(data.count, 3)
+            XCTAssertEqual(data["Category A"], 50.0)
+            XCTAssertEqual(data["Category B"], 30.0)
+            XCTAssertEqual(data["Category C"], 20.0)
+        } else {
+            XCTFail("Data without title not found in parsed data")
+        }
+    }
 }
