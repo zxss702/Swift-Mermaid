@@ -1,12 +1,21 @@
+//
+//  SequenceDiagramView.swift
+//  SwiftMermind
+//
+//  A comprehensive view that renders sequence diagrams with full Mermaid support
+//  including participants, messages, notes, activations, and loops
+//
+
 import SwiftUI
 
-/// A view that renders a sequence diagram
+/// A comprehensive view that renders sequence diagrams with full Mermaid support
 public struct SequenceDiagramView: View {
     private let diagram: MermaidDiagram
     private let size: CGSize
-    private let actorSpacing: CGFloat = 150
-    private let messageSpacing: CGFloat = 60
-    private let actorTopMargin: CGFloat = 40
+    private let participantSpacing: CGFloat = 150
+    private let messageSpacing: CGFloat = 50
+    private let participantTopMargin: CGFloat = 40
+    private let activationWidth: CGFloat = 10
     
     public init(diagram: MermaidDiagram, size: CGSize) {
         self.diagram = diagram
@@ -14,226 +23,429 @@ public struct SequenceDiagramView: View {
     }
     
     public var body: some View {
-        let actors = extractActors()
-        let messages = extractMessages()
+        let participants = getParticipants()
+        let messages = getMessages()
+        let notes = getNotes()
+        let activations = getActivations()
+        let loops = getLoops()
         
         return ZStack {
-            // Draw lifelines
-            ForEach(0..<actors.count, id: \.self) { index in
-                let x = calculateActorX(index: index, count: actors.count)
+            // Draw participants and lifelines
+            ForEach(0..<participants.count, id: \.self) { index in
+                let x = calculateParticipantX(index: index, count: participants.count)
                 
                 // Lifeline
                 Path { path in
-                    path.move(to: CGPoint(x: x, y: actorTopMargin + 40))
-                    path.addLine(to: CGPoint(x: x, y: size.height - 20))
+                    path.move(to: CGPoint(x: x, y: participantTopMargin + 50))
+                    path.addLine(to: CGPoint(x: x, y: size.height - 60))
                 }
-                .stroke(Color.gray, style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                .stroke(Color.gray, style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
                 
-                // Actor
+                // Participant boxes (top and bottom)
                 VStack {
-                    Text(actors[index])
-                        .font(.system(size: 14))
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 4).stroke(Color.black, lineWidth: 1).background(Color.white))
-                    
+                    ParticipantBox(name: participants[index])
                     Spacer()
-                    
-                    Text(actors[index])
-                        .font(.system(size: 14))
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 4).stroke(Color.black, lineWidth: 1).background(Color.white))
+                    ParticipantBox(name: participants[index])
                 }
-                .frame(height: size.height - 40)
+                .frame(height: size.height - 80)
                 .position(x: x, y: size.height / 2)
             }
             
+            // Draw activation boxes
+            ForEach(activations.indices, id: \.self) { index in
+                let activation = activations[index]
+                if let participantIndex = participants.firstIndex(of: activation.participant) {
+                    let x = calculateParticipantX(index: participantIndex, count: participants.count)
+                    let y = participantTopMargin + 80 + CGFloat(index) * messageSpacing
+                    
+                    if activation.isActivate {
+                        Rectangle()
+            .fill(Color.white)
+            .overlay(
+                Rectangle()
+                    .stroke(Color.black, lineWidth: 1)
+            )
+                            .frame(width: activationWidth, height: messageSpacing * 2)
+                            .position(x: x, y: y + messageSpacing)
+                    }
+                }
+            }
+            
             // Draw messages
-            ForEach(0..<messages.count, id: \.self) { index in
+            ForEach(messages.indices, id: \.self) { index in
                 let message = messages[index]
-                let fromIndex = actors.firstIndex(of: message.from) ?? 0
-                let toIndex = actors.firstIndex(of: message.to) ?? 0
-                let fromX = calculateActorX(index: fromIndex, count: actors.count)
-                let toX = calculateActorX(index: toIndex, count: actors.count)
-                let y = actorTopMargin + 80 + CGFloat(index) * messageSpacing
-                
-                // Message line
-                Path { path in
-                    path.move(to: CGPoint(x: fromX, y: y))
-                    path.addLine(to: CGPoint(x: toX, y: y))
-                }
-                .stroke(Color.black, lineWidth: 1)
-                
-                // Arrow
-                if fromX < toX {
-                    ArrowShape(start: CGPoint(x: fromX, y: y), end: CGPoint(x: toX, y: y))
-                        .fill(Color.black)
-                        .frame(width: 10, height: 10)
-                        .position(x: toX - 5, y: y)
-                } else {
-                    ArrowShape(start: CGPoint(x: fromX, y: y), end: CGPoint(x: toX, y: y))
-                        .fill(Color.black)
-                        .frame(width: 10, height: 10)
-                        .position(x: toX + 5, y: y)
-                }
-                
-                // Message text
-                Text(message.text)
-                    .font(.system(size: 12))
-                    .position(x: (fromX + toX) / 2, y: y - 15)
-                    .background(Color.white.opacity(0.8))
-                    .padding(2)
+                MessageView(
+                    message: message,
+                    participants: participants,
+                    index: index,
+                    size: size,
+                    participantSpacing: participantSpacing,
+                    messageSpacing: messageSpacing,
+                    participantTopMargin: participantTopMargin
+                )
+            }
+            
+            // Draw notes
+            ForEach(notes.indices, id: \.self) { index in
+                let note = notes[index]
+                NoteView(
+                    note: note,
+                    participants: participants,
+                    messageIndex: index,
+                    size: size,
+                    participantSpacing: participantSpacing,
+                    messageSpacing: messageSpacing,
+                    participantTopMargin: participantTopMargin
+                )
+            }
+            
+            // Draw loops
+            ForEach(loops.indices, id: \.self) { index in
+                let loop = loops[index]
+                LoopView(
+                    loop: loop,
+                    participants: participants,
+                    size: size,
+                    participantSpacing: participantSpacing,
+                    messageSpacing: messageSpacing,
+                    participantTopMargin: participantTopMargin
+                )
             }
         }
         .frame(width: size.width, height: size.height)
     }
     
-    private func calculateActorX(index: Int, count: Int) -> CGFloat {
+    // MARK: - Data Extraction Methods
+    
+    private func getParticipants() -> [String] {
+        if let participants = diagram.parsedData["participants"] as? [String] {
+            return participants
+        }
+        return ["Participant"]
+    }
+    
+    private func getMessages() -> [SequenceMessage] {
+        if let messages = diagram.parsedData["messages"] as? [SequenceMessage] {
+            return messages
+        }
+        return []
+    }
+    
+    private func getNotes() -> [SequenceNote] {
+        if let notes = diagram.parsedData["notes"] as? [SequenceNote] {
+            return notes
+        }
+        return []
+    }
+    
+    private func getActivations() -> [SequenceActivation] {
+        if let activations = diagram.parsedData["activations"] as? [SequenceActivation] {
+            return activations
+        }
+        return []
+    }
+    
+    private func getLoops() -> [SequenceLoop] {
+        if let loops = diagram.parsedData["loops"] as? [SequenceLoop] {
+            return loops
+        }
+        return []
+    }
+    
+    private func calculateParticipantX(index: Int, count: Int) -> CGFloat {
         if count <= 1 {
             return size.width / 2
         }
         
-        let availableWidth = size.width - 80 // Padding on both sides
-        let step = min(availableWidth / CGFloat(count - 1), actorSpacing)
+        let availableWidth = size.width - 100 // Padding on both sides
+        let step = min(availableWidth / CGFloat(count - 1), participantSpacing)
         let totalWidth = step * CGFloat(count - 1)
         let leftMargin = (size.width - totalWidth) / 2
         
         return leftMargin + CGFloat(index) * step
     }
+}
+
+// MARK: - Supporting Views
+
+/// A view that represents a participant box
+struct ParticipantBox: View {
+    let name: String
     
-    private struct SequenceMessage {
-        let from: String
-        let to: String
-        let text: String
-        let type: MessageType
-        
-        enum MessageType {
-            case solid
-            case dashed
-            case note
-            case activation
-            case deactivation
-        }
-    }
-    
-    private func extractActors() -> [String] {
-        // In a real implementation, you would parse the actors from the diagram text
-        // This is a simplified implementation for demonstration
-        
-        // Look for participant or actor definitions
-        let lines = diagram.rawText.components(separatedBy: .newlines)
-        var actors = [String]()
-        
-        for line in lines {
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            
-            if trimmedLine.hasPrefix("participant") || trimmedLine.hasPrefix("actor") {
-                let components = trimmedLine.components(separatedBy: .whitespaces)
-                if components.count >= 2 {
-                    let actor = components[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-                    actors.append(actor)
-                }
-            }
-        }
-        
-        // If no actors were explicitly defined, extract them from message lines
-        if actors.isEmpty {
-            for line in lines {
-                let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-                
-                // Look for lines with arrows (->)
-                if trimmedLine.contains("->") || trimmedLine.contains("->>")
-                    || trimmedLine.contains("-->") || trimmedLine.contains("-->>") {
-                    
-                    let parts = trimmedLine.components(separatedBy: CharacterSet(charactersIn: "->:"))
-                    if parts.count >= 2 {
-                        let from = parts[0].trimmingCharacters(in: .whitespaces)
-                        let to = parts[1].trimmingCharacters(in: .whitespaces)
-                        
-                        if !from.isEmpty && !actors.contains(from) {
-                            actors.append(from)
-                        }
-                        
-                        if !to.isEmpty && !actors.contains(to) {
-                            actors.append(to)
-                        }
-                    }
-                }
-            }
-        }
-        
-        // If still no actors found, create a default one
-        if actors.isEmpty {
-            actors = ["Participant"]
-        }
-        
-        return actors
-    }
-    
-    private func extractMessages() -> [SequenceMessage] {
-        // In a real implementation, you would parse the messages from the diagram text
-        // This is a simplified implementation for demonstration
-        
-        let lines = diagram.rawText.components(separatedBy: .newlines)
-        var messages = [SequenceMessage]()
-        let actors = extractActors()
-        
-        for line in lines {
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            
-            // Skip lines that define participants or are empty
-            if trimmedLine.hasPrefix("participant") || trimmedLine.hasPrefix("actor") || trimmedLine.isEmpty {
-                continue
-            }
-            
-            // Look for lines with arrows (->)
-            if trimmedLine.contains("->") || trimmedLine.contains("->>")
-                || trimmedLine.contains("-->") || trimmedLine.contains("-->>") {
-                
-                var arrowType: SequenceMessage.MessageType = .solid
-                if trimmedLine.contains("-->") || trimmedLine.contains("-->>") {
-                    arrowType = .dashed
-                }
-                
-                // Split by arrow
-                let arrowComponents: [String]
-                if trimmedLine.contains("->") {
-                    arrowComponents = trimmedLine.components(separatedBy: "->")
-                } else if trimmedLine.contains("->>") {
-                    arrowComponents = trimmedLine.components(separatedBy: "->")
-                } else if trimmedLine.contains("-->") {
-                    arrowComponents = trimmedLine.components(separatedBy: "-->")
-                } else {
-                    arrowComponents = trimmedLine.components(separatedBy: "-->>")
-                }
-                
-                if arrowComponents.count >= 2 {
-                    let from = arrowComponents[0].trimmingCharacters(in: .whitespaces)
-                    
-                    // Split the second part by colon to get the message text
-                    let toParts = arrowComponents[1].components(separatedBy: ":")
-                    let to = toParts[0].trimmingCharacters(in: .whitespaces)
-                    
-                    var messageText = ""
-                    if toParts.count >= 2 {
-                        messageText = toParts[1].trimmingCharacters(in: .whitespaces)
-                    }
-                    
-                    // Ensure from and to are valid actors
-                    let validFrom = actors.contains(from) ? from : actors.first ?? "Participant"
-                    let validTo = actors.contains(to) ? to : actors.last ?? "Participant"
-                    
-                    messages.append(SequenceMessage(from: validFrom, to: validTo, text: messageText, type: arrowType))
-                }
-            }
-        }
-        
-        // If no messages were found, create a default one
-        if messages.isEmpty && actors.count >= 2 {
-            messages = [SequenceMessage(from: actors[0], to: actors[1], text: "Message", type: .solid)]
-        } else if messages.isEmpty {
-            messages = [SequenceMessage(from: actors[0], to: actors[0], text: "Message", type: .solid)]
-        }
-        
-        return messages
+    var body: some View {
+        Text(name)
+            .font(.system(size: 14, weight: .medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.black, lineWidth: 1.5)
+                    )
+            )
     }
 }
+
+/// A view that renders a message between participants
+struct MessageView: View {
+    let message: SequenceMessage
+    let participants: [String]
+    let index: Int
+    let size: CGSize
+    let participantSpacing: CGFloat
+    let messageSpacing: CGFloat
+    let participantTopMargin: CGFloat
+    
+    var body: some View {
+        let fromIndex = participants.firstIndex(of: message.from) ?? 0
+        let toIndex = participants.firstIndex(of: message.to) ?? 0
+        let fromX = calculateParticipantX(index: fromIndex, count: participants.count)
+        let toX = calculateParticipantX(index: toIndex, count: participants.count)
+        let y = participantTopMargin + 100 + CGFloat(index) * messageSpacing
+        
+        ZStack {
+            // Message line
+            MessageLine(
+                from: CGPoint(x: fromX, y: y),
+                to: CGPoint(x: toX, y: y),
+                type: message.type
+            )
+            
+            // Message text
+            if !message.text.isEmpty {
+                Text(message.text)
+                    .font(.system(size: 12))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.white)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                            )
+                    )
+                    .position(x: (fromX + toX) / 2, y: y - 18)
+            }
+        }
+    }
+    
+    private func calculateParticipantX(index: Int, count: Int) -> CGFloat {
+        if count <= 1 {
+            return size.width / 2
+        }
+        
+        let availableWidth = size.width - 100
+        let step = min(availableWidth / CGFloat(count - 1), participantSpacing)
+        let totalWidth = step * CGFloat(count - 1)
+        let leftMargin = (size.width - totalWidth) / 2
+        
+        return leftMargin + CGFloat(index) * step
+    }
+}
+
+/// A view that renders different types of message lines
+struct MessageLine: View {
+    let from: CGPoint
+    let to: CGPoint
+    let type: SequenceMessageType
+    
+    var body: some View {
+        ZStack {
+            // Main line
+            Path { path in
+                path.move(to: from)
+                path.addLine(to: to)
+            }
+            .stroke(
+                Color.black,
+                style: StrokeStyle(
+                    lineWidth: lineWidth,
+                    dash: isDashed ? [6, 3] : []
+                )
+            )
+            
+            // Arrow head
+            if from.x != to.x {
+                ArrowHead(from: from, to: to, type: type)
+            }
+        }
+    }
+    
+    private var lineWidth: CGFloat {
+        switch type {
+        case .syncRequest, .asyncRequest:
+            return 1.5
+        case .syncResponse, .asyncResponse:
+            return 1.0
+        case .lost, .found:
+            return 1.5
+        }
+    }
+    
+    private var isDashed: Bool {
+        switch type {
+        case .syncResponse, .asyncResponse:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+/// A view that renders arrow heads for messages
+struct ArrowHead: View {
+    let from: CGPoint
+    let to: CGPoint
+    let type: SequenceMessageType
+    
+    var body: some View {
+        let angle = atan2(to.y - from.y, to.x - from.x)
+        let arrowLength: CGFloat = 8
+        let arrowAngle: CGFloat = .pi / 6
+        
+        Path { path in
+            // Arrow tip
+            path.move(to: to)
+            
+            // Left arrow line
+            let leftPoint = CGPoint(
+                x: to.x - arrowLength * cos(angle - arrowAngle),
+                y: to.y - arrowLength * sin(angle - arrowAngle)
+            )
+            path.addLine(to: leftPoint)
+            
+            // Right arrow line
+            path.move(to: to)
+            let rightPoint = CGPoint(
+                x: to.x - arrowLength * cos(angle + arrowAngle),
+                y: to.y - arrowLength * sin(angle + arrowAngle)
+            )
+            path.addLine(to: rightPoint)
+        }
+        .stroke(Color.black, lineWidth: 1.5)
+    }
+}
+
+/// A view that renders notes in sequence diagrams
+struct NoteView: View {
+    let note: SequenceNote
+    let participants: [String]
+    let messageIndex: Int
+    let size: CGSize
+    let participantSpacing: CGFloat
+    let messageSpacing: CGFloat
+    let participantTopMargin: CGFloat
+    
+    var body: some View {
+        let (x, width) = calculateNotePosition()
+        let y = participantTopMargin + 100 + CGFloat(messageIndex) * messageSpacing + 30
+        
+        Text(note.text)
+            .font(.system(size: 11))
+            .padding(8)
+            .frame(width: width)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.yellow.opacity(0.2))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.orange, lineWidth: 1)
+                    )
+            )
+            .position(x: x, y: y)
+    }
+    
+    private func calculateNotePosition() -> (x: CGFloat, width: CGFloat) {
+        switch note.position {
+        case .leftOf(let participant):
+            if let index = participants.firstIndex(of: participant) {
+                let participantX = calculateParticipantX(index: index, count: participants.count)
+                return (participantX - 60, 100)
+            }
+            return (size.width / 2, 100)
+            
+        case .rightOf(let participant):
+            if let index = participants.firstIndex(of: participant) {
+                let participantX = calculateParticipantX(index: index, count: participants.count)
+                return (participantX + 60, 100)
+            }
+            return (size.width / 2, 100)
+            
+        case .over(let noteParticipants):
+            if noteParticipants.count == 1,
+               let index = participants.firstIndex(of: noteParticipants[0]) {
+                let participantX = calculateParticipantX(index: index, count: participants.count)
+                return (participantX, 120)
+            } else if noteParticipants.count >= 2,
+                      let firstIndex = participants.firstIndex(of: noteParticipants[0]),
+                      let lastIndex = participants.firstIndex(of: noteParticipants.last!) {
+                let firstX = calculateParticipantX(index: firstIndex, count: participants.count)
+                let lastX = calculateParticipantX(index: lastIndex, count: participants.count)
+                let centerX = (firstX + lastX) / 2
+                let width = abs(lastX - firstX) + 40
+                return (centerX, width)
+            }
+            return (size.width / 2, 120)
+        }
+    }
+    
+    private func calculateParticipantX(index: Int, count: Int) -> CGFloat {
+        if count <= 1 {
+            return size.width / 2
+        }
+        
+        let availableWidth = size.width - 100
+        let step = min(availableWidth / CGFloat(count - 1), participantSpacing)
+        let totalWidth = step * CGFloat(count - 1)
+        let leftMargin = (size.width - totalWidth) / 2
+        
+        return leftMargin + CGFloat(index) * step
+    }
+}
+
+/// A view that renders loop constructs in sequence diagrams
+struct LoopView: View {
+    let loop: SequenceLoop
+    let participants: [String]
+    let size: CGSize
+    let participantSpacing: CGFloat
+    let messageSpacing: CGFloat
+    let participantTopMargin: CGFloat
+    
+    var body: some View {
+        let startY = participantTopMargin + 100 + CGFloat(loop.startIndex) * messageSpacing - 20
+        let endY = participantTopMargin + 100 + CGFloat(loop.endIndex) * messageSpacing + 20
+        let height = endY - startY
+        
+        VStack {
+            HStack {
+                Text("loop [\(loop.text)]")
+                    .font(.system(size: 10, weight: .medium))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.blue.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(Color.blue, lineWidth: 1)
+                            )
+                    )
+                Spacer()
+            }
+            Spacer()
+        }
+        .frame(width: size.width - 60, height: height)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.blue, style: StrokeStyle(lineWidth: 1, dash: [4, 2]))
+        )
+        .position(x: size.width / 2, y: (startY + endY) / 2)
+    }
+}
+
+// MARK: - Legacy compatibility
+// ArrowShape is defined in FlowchartView.swift and can be reused here if needed

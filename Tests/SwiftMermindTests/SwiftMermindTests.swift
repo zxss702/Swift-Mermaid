@@ -73,4 +73,54 @@ final class SwiftMermindTests: XCTestCase {
         XCTAssertTrue(diagram.edges.contains { $0.from == "B" && $0.to == "C" && $0.label == "Yes" })
         XCTAssertTrue(diagram.edges.contains { $0.from == "B" && $0.to == "D" && $0.label == "No" })
     }
+    
+    func testSequenceDiagramParsing() throws {
+        let parser = MermaidParser()
+        
+        let sequenceText = """
+        sequenceDiagram
+            participant Alice
+            participant Bob
+            Alice->>Bob: Hello Bob, how are you?
+            Bob-->>Alice: Great!
+            Note right of Bob: Bob thinks
+            activate Alice
+            Alice->>Bob: Another message
+            deactivate Alice
+        """
+        
+        let diagram = parser.parse(sequenceText)
+        XCTAssertEqual(diagram.type, .sequenceDiagram)
+        
+        // Check that participants were parsed
+        if let participants = diagram.parsedData["participants"] as? [String] {
+            XCTAssertTrue(participants.contains("Alice"))
+            XCTAssertTrue(participants.contains("Bob"))
+        } else {
+            XCTFail("Participants not found in parsed data")
+        }
+        
+        // Check that messages were parsed
+        if let messages = diagram.parsedData["messages"] as? [SequenceMessage] {
+            XCTAssertTrue(messages.count >= 2)
+            XCTAssertTrue(messages.contains { $0.from == "Alice" && $0.to == "Bob" && $0.text == "Hello Bob, how are you?" })
+            XCTAssertTrue(messages.contains { $0.from == "Bob" && $0.to == "Alice" && $0.text == "Great!" })
+        } else {
+            XCTFail("Messages not found in parsed data")
+        }
+        
+        // Check that notes were parsed
+        if let notes = diagram.parsedData["notes"] as? [SequenceNote] {
+            XCTAssertTrue(notes.contains { $0.text == "Bob thinks" })
+        } else {
+            XCTFail("Notes not found in parsed data")
+        }
+        
+        // Check that activations were parsed
+        if let activations = diagram.parsedData["activations"] as? [SequenceActivation] {
+            XCTAssertTrue(activations.contains { $0.participant == "Alice" && $0.isActivate })
+        } else {
+            XCTFail("Activations not found in parsed data")
+        }
+    }
 }

@@ -14,6 +14,79 @@ public enum DiagramType {
     case unknown
 }
 
+// MARK: - Sequence Diagram Data Structures
+
+/// Represents a message in a sequence diagram
+public struct SequenceMessage {
+    public let from: String
+    public let to: String
+    public let text: String
+    public let type: SequenceMessageType
+    
+    public init(from: String, to: String, text: String, type: SequenceMessageType) {
+        self.from = from
+        self.to = to
+        self.text = text
+        self.type = type
+    }
+}
+
+/// Represents the type of message in a sequence diagram
+public enum SequenceMessageType {
+    case syncRequest      // ->
+    case asyncRequest     // ->>
+    case syncResponse     // -->
+    case asyncResponse    // -->>
+    case lost            // -x or --x
+    case found           // ->> or -->
+}
+
+/// Represents a note in a sequence diagram
+public struct SequenceNote {
+    public let text: String
+    public let position: SequenceNotePosition
+    public let participants: [String]
+    
+    public init(text: String, position: SequenceNotePosition, participants: [String]) {
+        self.text = text
+        self.position = position
+        self.participants = participants
+    }
+}
+
+/// Represents the position of a note in a sequence diagram
+public enum SequenceNotePosition {
+    case leftOf(String)
+    case rightOf(String)
+    case over([String])
+}
+
+/// Represents an activation/deactivation in a sequence diagram
+public struct SequenceActivation {
+    public let participant: String
+    public let isActivate: Bool
+    
+    public init(participant: String, isActivate: Bool) {
+        self.participant = participant
+        self.isActivate = isActivate
+    }
+}
+
+/// Represents a loop construct in a sequence diagram
+public struct SequenceLoop {
+    public let text: String
+    public let startIndex: Int
+    public var endIndex: Int
+    public var messages: [SequenceMessage]
+    
+    public init(text: String, startIndex: Int, endIndex: Int, messages: [SequenceMessage]) {
+        self.text = text
+        self.startIndex = startIndex
+        self.endIndex = endIndex
+        self.messages = messages
+    }
+}
+
 /// Represents a parsed Mermaid diagram
 public struct MermaidDiagram {
     public let type: DiagramType
@@ -336,8 +409,171 @@ public class MermaidParser {
     }
     
     private func parseSequenceDiagram(_ text: String) -> MermaidDiagram {
-        // Simplified implementation
-        return MermaidDiagram(type: .sequenceDiagram, rawText: text)
+        var participants: [String] = []
+        var messages: [SequenceMessage] = []
+        var notes: [SequenceNote] = []
+        var activations: [SequenceActivation] = []
+        var loops: [SequenceLoop] = []
+        
+        let lines = text.components(separatedBy: .newlines)
+        var currentLoop: SequenceLoop?
+        
+        for (index, line) in lines.enumerated() {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            // Skip empty lines and diagram declaration
+            if trimmedLine.isEmpty || trimmedLine.hasPrefix("sequenceDiagram") {
+                continue
+            }
+            
+            // Parse participant declarations
+            if trimmedLine.hasPrefix("participant ") || trimmedLine.hasPrefix("actor ") {
+                let components = trimmedLine.components(separatedBy: " ")
+                if components.count >= 2 {
+                    let participant = components[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    if !participants.contains(participant) {
+                        participants.append(participant)
+                    }
+                }
+                continue
+            }
+            
+            // Parse notes
+            if trimmedLine.lowercased().hasPrefix("note ") {
+                parseSequenceNote(trimmedLine, notes: &notes, participants: &participants)
+                continue
+            }
+            
+            // Parse activation/deactivation
+            if trimmedLine.hasPrefix("activate ") || trimmedLine.hasPrefix("deactivate ") {
+                parseActivation(trimmedLine, activations: &activations, participants: &participants)
+                continue
+            }
+            
+            // Parse loop constructs
+            if trimmedLine.hasPrefix("loop ") {
+                let loopText = String(trimmedLine.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                currentLoop = SequenceLoop(text: loopText, startIndex: index, endIndex: -1, messages: [])
+                continue
+            }
+            
+            if trimmedLine == "end" && currentLoop != nil {
+                currentLoop!.endIndex = index
+                loops.append(currentLoop!)
+                currentLoop = nil
+                continue
+            }
+            
+            // Parse messages (arrows)
+            if let message = parseSequenceMessage(trimmedLine, participants: &participants) {
+                messages.append(message)
+                
+                // Add to current loop if we're inside one
+                if currentLoop != nil {
+                    currentLoop!.messages.append(message)
+                }
+            }
+        }
+        
+        // Create parsed data dictionary
+        let parsedData: [String: Any] = [
+            "participants": participants,
+            "messages": messages,
+            "notes": notes,
+            "activations": activations,
+            "loops": loops
+        ]
+        
+        return MermaidDiagram(type: .sequenceDiagram, rawText: text, parsedData: parsedData)
+    }
+    
+    private func parseSequenceMessage(_ line: String, participants: inout [String]) -> SequenceMessage? {
+        let arrowPatterns = [
+            ("-->>", SequenceMessageType.asyncResponse),
+            ("-->", SequenceMessageType.syncResponse),
+            ("--x", SequenceMessageType.lost),
+            ("->>", SequenceMessageType.asyncRequest),
+            ("->", SequenceMessageType.syncRequest),
+            ("-x", SequenceMessageType.lost)
+        ]
+        
+        for (arrow, messageType) in arrowPatterns {
+            if line.contains(arrow) {
+                let parts = line.components(separatedBy: arrow)
+                if parts.count >= 2 {
+                    let from = parts[0].trimmingCharacters(in: .whitespaces)
+                    let toPart = parts[1].trimmingCharacters(in: .whitespaces)
+                    
+                    // Extract message text if present (after colon)
+                    let toComponents = toPart.components(separatedBy: ":")
+                    let to = toComponents[0].trimmingCharacters(in: .whitespaces)
+                    let messageText = toComponents.count > 1 ? toComponents[1].trimmingCharacters(in: .whitespaces) : ""
+                    
+                    // Add participants if not already present
+                    if !participants.contains(from) {
+                        participants.append(from)
+                    }
+                    if !participants.contains(to) {
+                        participants.append(to)
+                    }
+                    
+                    return SequenceMessage(
+                        from: from,
+                        to: to,
+                        text: messageText,
+                        type: messageType
+                    )
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    private func parseSequenceNote(_ line: String, notes: inout [SequenceNote], participants: inout [String]) {
+        // Parse note syntax: "note left of A: Note text" or "note over A,B: Note text"
+        let components = line.components(separatedBy: ":")
+        if components.count >= 2 {
+            let noteDeclaration = components[0].trimmingCharacters(in: .whitespaces).lowercased()
+            let noteText = components[1].trimmingCharacters(in: .whitespaces)
+            
+            if noteDeclaration.contains("left of") {
+                let participant = noteDeclaration.replacingOccurrences(of: "note left of ", with: "").trimmingCharacters(in: .whitespaces)
+                notes.append(SequenceNote(text: noteText, position: .leftOf(participant), participants: [participant]))
+                if !participants.contains(participant) {
+                    participants.append(participant)
+                }
+            } else if noteDeclaration.contains("right of") {
+                let participant = noteDeclaration.replacingOccurrences(of: "note right of ", with: "").trimmingCharacters(in: .whitespaces)
+                notes.append(SequenceNote(text: noteText, position: .rightOf(participant), participants: [participant]))
+                if !participants.contains(participant) {
+                    participants.append(participant)
+                }
+            } else if noteDeclaration.contains("over") {
+                let participantsPart = noteDeclaration.replacingOccurrences(of: "note over ", with: "").trimmingCharacters(in: .whitespaces)
+                let noteParticipants = participantsPart.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                notes.append(SequenceNote(text: noteText, position: .over(noteParticipants), participants: noteParticipants))
+                for participant in noteParticipants {
+                    if !participants.contains(participant) {
+                        participants.append(participant)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func parseActivation(_ line: String, activations: inout [SequenceActivation], participants: inout [String]) {
+        let components = line.components(separatedBy: " ")
+        if components.count >= 2 {
+            let isActivate = components[0] == "activate"
+            let participant = components[1].trimmingCharacters(in: .whitespaces)
+            
+            if !participants.contains(participant) {
+                participants.append(participant)
+            }
+            
+            activations.append(SequenceActivation(participant: participant, isActivate: isActivate))
+        }
     }
     
     private func parseClassDiagram(_ text: String) -> MermaidDiagram {
