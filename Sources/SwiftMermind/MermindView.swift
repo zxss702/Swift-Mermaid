@@ -57,7 +57,6 @@ public struct mermindView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color.clear)
     }
 }
 
@@ -115,7 +114,6 @@ struct ZoomableScrollView: UIViewControllerRepresentable {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color.clear)
     }
 }
 
@@ -160,6 +158,7 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         scrollView.addSubview(hostingView.view)
         hostingView.view.translatesAutoresizingMaskIntoConstraints = false
+        hostingView.sizingOptions = .intrinsicContentSize
         
         NSLayoutConstraint.activate([
             scrollView.contentLayoutGuide.heightAnchor.constraint(equalTo: hostingView.view.heightAnchor),
