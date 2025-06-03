@@ -311,20 +311,28 @@ public class MermaidParser {
                 continue
             }
             
-            // 添加这些跳过条件：
-            // Skip comments
+            // Skip comments (lines starting with %%)
             if trimmedLine.hasPrefix("%%") {
                 continue
             }
             
-            // Skip style definitions
-            if trimmedLine.hasPrefix("classDef") || trimmedLine.hasPrefix("class ") || 
-               trimmedLine.hasPrefix("linkStyle") || trimmedLine.hasPrefix("style") {
+            // Skip style definitions (classDef)
+            if trimmedLine.hasPrefix("classDef") {
                 continue
             }
             
-            // Skip subgraph declarations (basic support)
+            // Skip style applications (class)
+            if trimmedLine.hasPrefix("class ") {
+                continue
+            }
+            
+            // Skip subgraph declarations and endings
             if trimmedLine.hasPrefix("subgraph") || trimmedLine == "end" {
+                continue
+            }
+            
+            // Skip linkStyle declarations
+            if trimmedLine.hasPrefix("linkStyle") {
                 continue
             }
             
@@ -336,9 +344,44 @@ public class MermaidParser {
     }
     
     private func parseFlowchartLine(_ line: String, nodes: inout [Node], edges: inout [Edge], nodeIds: inout Set<String>) {
-        // Handle different arrow types
-        let arrowPatterns = ["-->", "--->", "-.->", "==>", "-.->"]
+        // Handle different arrow types, including edge labels with --
+        let arrowPatterns = ["-->", "--->", "-.->" , "==>", "-.->"]
         
+        // First check for edge labels with -- syntax (e.g., A4 -- 是 --> A5)
+        if let edgeLabelMatch = line.range(of: #"\s--\s[^-]+\s-->\s"#, options: .regularExpression) {
+            let matchString = String(line[edgeLabelMatch])
+            let components = matchString.components(separatedBy: "--")
+            if components.count >= 2 {
+                let beforeLabel = components[0].trimmingCharacters(in: .whitespaces)
+                let afterLabelPart = components[1].trimmingCharacters(in: .whitespaces)
+                
+                if let arrowIndex = afterLabelPart.range(of: "-->") {
+                    let edgeLabel = String(afterLabelPart[..<arrowIndex.lowerBound]).trimmingCharacters(in: .whitespaces)
+                    let afterArrow = String(afterLabelPart[arrowIndex.upperBound...]).trimmingCharacters(in: .whitespaces)
+                    
+                    // Extract node info
+                    let (fromId, fromLabel, fromShape) = extractNodeInfo(beforeLabel)
+                    let (toId, toLabel, toShape) = extractNodeInfo(afterArrow)
+                    
+                    // Add nodes if not already added
+                    if !nodeIds.contains(fromId) {
+                        nodes.append(Node(id: fromId, label: fromLabel, shape: fromShape))
+                        nodeIds.insert(fromId)
+                    }
+                    
+                    if !nodeIds.contains(toId) {
+                        nodes.append(Node(id: toId, label: toLabel, shape: toShape))
+                        nodeIds.insert(toId)
+                    }
+                    
+                    // Add edge with label
+                    edges.append(Edge(from: fromId, to: toId, label: edgeLabel))
+                    return
+                }
+            }
+        }
+        
+        // Handle standard arrow patterns
         for arrowPattern in arrowPatterns {
             if line.contains(arrowPattern) {
                 let parts = line.components(separatedBy: arrowPattern)
@@ -375,33 +418,36 @@ public class MermaidParser {
     private func extractNodeInfo(_ nodeString: String) -> (id: String, label: String, shape: NodeShape) {
         let trimmed = nodeString.trimmingCharacters(in: .whitespaces)
         
-        // Check for different node shapes
+        // Check for different node shapes with improved regex patterns
+        // Rectangle nodes: A1[label] or A1_retry[label]
         if let match = trimmed.range(of: #"([A-Za-z0-9_]+)\[([^\]]+)\]"#, options: .regularExpression) {
             let matchString = String(trimmed[match])
-            let components = matchString.components(separatedBy: "[")
-            if components.count >= 2 {
-                let id = components[0]
-                let label = components[1].replacingOccurrences(of: "]", with: "")
+            if let bracketIndex = matchString.firstIndex(of: "[") {
+                let id = String(matchString[..<bracketIndex])
+                let labelPart = String(matchString[matchString.index(after: bracketIndex)...])
+                let label = labelPart.replacingOccurrences(of: "]", with: "")
                 return (id, label, .rectangle)
             }
         }
         
+        // Round rectangle nodes: A1(label)
         if let match = trimmed.range(of: #"([A-Za-z0-9_]+)\(([^\)]+)\)"#, options: .regularExpression) {
             let matchString = String(trimmed[match])
-            let components = matchString.components(separatedBy: "(")
-            if components.count >= 2 {
-                let id = components[0]
-                let label = components[1].replacingOccurrences(of: ")", with: "")
+            if let parenIndex = matchString.firstIndex(of: "(") {
+                let id = String(matchString[..<parenIndex])
+                let labelPart = String(matchString[matchString.index(after: parenIndex)...])
+                let label = labelPart.replacingOccurrences(of: ")", with: "")
                 return (id, label, .roundedRectangle)
             }
         }
         
+        // Diamond nodes: A1{label}
         if let match = trimmed.range(of: #"([A-Za-z0-9_]+)\{([^\}]+)\}"#, options: .regularExpression) {
             let matchString = String(trimmed[match])
-            let components = matchString.components(separatedBy: "{")
-            if components.count >= 2 {
-                let id = components[0]
-                let label = components[1].replacingOccurrences(of: "}", with: "")
+            if let braceIndex = matchString.firstIndex(of: "{") {
+                let id = String(matchString[..<braceIndex])
+                let labelPart = String(matchString[matchString.index(after: braceIndex)...])
+                let label = labelPart.replacingOccurrences(of: "}", with: "")
                 return (id, label, .diamond)
             }
         }
