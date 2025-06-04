@@ -22,7 +22,8 @@ let package = Package(
             name: "SwiftMermaid"),
         .executableTarget(
             name: "MermaidDemo",
-            dependencies: ["SwiftMermaid"]),
+            dependencies: ["SwiftMermaid"]
+        ),
         .testTarget(
             name: "SwiftMermaidTests",
             dependencies: ["SwiftMermaid"]),

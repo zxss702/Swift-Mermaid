@@ -286,25 +286,173 @@ public struct StateDiagramView: View {
     }
     
     public var body: some View {
-        VStack {
-            Text("State Diagram")
-                .font(.title2)
-                .fontWeight(.bold)
-            
-            Text("Coming Soon")
-                .font(.caption)
-                .foregroundColor(.gray)
-            
-            ScrollView {
-                Text(diagram.rawText)
-                    .font(.system(.caption, design: .monospaced))
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+        if let stateDiagramData = diagram.parsedData["stateDiagram"] as? StateDiagram {
+            Canvas { context, canvasSize in
+                drawStateDiagram(context: context, stateDiagram: stateDiagramData, canvasSize: canvasSize)
             }
+            .frame(width: size.width, height: size.height)
+        } else {
+            VStack {
+                Text("State Diagram")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                Text("Failed to parse diagram")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                
+                ScrollView {
+                    Text(diagram.rawText)
+                        .font(.system(.caption, design: .monospaced))
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(8)
+                }
+            }
+            .frame(width: size.width, height: size.height)
+            .padding()
         }
-        .frame(width: size.width, height: size.height)
-        .padding()
+    }
+    
+    private func drawStateDiagram(context: GraphicsContext, stateDiagram: StateDiagram, canvasSize: CGSize) {
+        // Draw transitions first (so they appear behind states)
+        for transition in stateDiagram.transitions {
+            drawTransition(context: context, transition: transition, states: stateDiagram.states)
+        }
+        
+        // Draw states
+        for state in stateDiagram.states {
+            drawState(context: context, state: state)
+        }
+    }
+    
+    private func drawState(context: GraphicsContext, state: StateEntity) {
+        let stateSize = CGSize(width: 80, height: 40)
+        let rect = CGRect(
+            x: state.position.x - stateSize.width / 2,
+            y: state.position.y - stateSize.height / 2,
+            width: stateSize.width,
+            height: stateSize.height
+        )
+        
+        // Determine state color and shape based on type
+        if state.id == "[*]" {
+            // Draw start/end state as a filled circle
+            let circleRect = CGRect(
+                x: state.position.x - 10,
+                y: state.position.y - 10,
+                width: 20,
+                height: 20
+            )
+            context.fill(Path(ellipseIn: circleRect), with: .color(.black))
+        } else {
+            // Draw regular state as rounded rectangle
+            let path = Path(roundedRect: rect, cornerRadius: 8)
+            
+            // Fill background
+            context.fill(path, with: .color(.blue.opacity(0.1)))
+            
+            // Draw border
+            context.stroke(path, with: .color(.blue), lineWidth: 2)
+            
+            // Draw state text
+            let displayText = state.description ?? state.id
+            let textRect = CGRect(
+                x: rect.minX + 4,
+                y: rect.minY + 4,
+                width: rect.width - 8,
+                height: rect.height - 8
+            )
+            
+            context.draw(
+                Text(displayText)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary),
+                in: textRect
+            )
+        }
+    }
+    
+    private func drawTransition(context: GraphicsContext, transition: StateTransition, states: [StateEntity]) {
+        guard let fromState = states.first(where: { $0.id == transition.from }),
+              let toState = states.first(where: { $0.id == transition.to }) else {
+            return
+        }
+        
+        let startPoint = fromState.position
+        let endPoint = toState.position
+        
+        // Calculate arrow path
+        let path = createArrowPath(from: startPoint, to: endPoint)
+        
+        // Draw arrow
+        context.stroke(path, with: .color(.gray), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        
+        // Draw transition label if present
+        if let label = transition.label, !label.isEmpty {
+            let midPoint = CGPoint(
+                x: (startPoint.x + endPoint.x) / 2,
+                y: (startPoint.y + endPoint.y) / 2 - 10
+            )
+            
+            context.draw(
+                Text(label)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary),
+                at: midPoint
+            )
+        }
+    }
+    
+    private func createArrowPath(from startPoint: CGPoint, to endPoint: CGPoint) -> Path {
+        var path = Path()
+        
+        // Calculate direction vector
+        let dx = endPoint.x - startPoint.x
+        let dy = endPoint.y - startPoint.y
+        let length = sqrt(dx * dx + dy * dy)
+        
+        if length == 0 { return path }
+        
+        // Normalize direction
+        let unitX = dx / length
+        let unitY = dy / length
+        
+        // Adjust start and end points to account for state boundaries
+        let stateRadius: CGFloat = 40
+        let adjustedStart = CGPoint(
+            x: startPoint.x + unitX * stateRadius,
+            y: startPoint.y + unitY * stateRadius
+        )
+        let adjustedEnd = CGPoint(
+            x: endPoint.x - unitX * stateRadius,
+            y: endPoint.y - unitY * stateRadius
+        )
+        
+        // Draw main line
+        path.move(to: adjustedStart)
+        path.addLine(to: adjustedEnd)
+        
+        // Draw arrowhead
+        let arrowLength: CGFloat = 10
+        let arrowAngle: CGFloat = .pi / 6
+        
+        let arrowPoint1 = CGPoint(
+            x: adjustedEnd.x - arrowLength * cos(atan2(dy, dx) - arrowAngle),
+            y: adjustedEnd.y - arrowLength * sin(atan2(dy, dx) - arrowAngle)
+        )
+        
+        let arrowPoint2 = CGPoint(
+            x: adjustedEnd.x - arrowLength * cos(atan2(dy, dx) + arrowAngle),
+            y: adjustedEnd.y - arrowLength * sin(atan2(dy, dx) + arrowAngle)
+        )
+        
+        path.move(to: adjustedEnd)
+        path.addLine(to: arrowPoint1)
+        path.move(to: adjustedEnd)
+        path.addLine(to: arrowPoint2)
+        
+        return path
     }
 }
 

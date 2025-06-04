@@ -108,6 +108,57 @@ public enum ClassRelationshipType {
     case realization     // ..|>
 }
 
+// MARK: - State Diagram Data Structures
+
+/// Represents a state in a state diagram
+public struct StateEntity: Equatable {
+    public let id: String
+    public let description: String?
+    public let isStart: Bool
+    public let isEnd: Bool
+    public let position: CGPoint
+    
+    public init(id: String, description: String? = nil, isStart: Bool = false, isEnd: Bool = false, position: CGPoint = .zero) {
+        self.id = id
+        self.description = description
+        self.isStart = isStart
+        self.isEnd = isEnd
+        self.position = position
+    }
+    
+    public static func == (lhs: StateEntity, rhs: StateEntity) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.description == rhs.description &&
+               lhs.isStart == rhs.isStart &&
+               lhs.isEnd == rhs.isEnd &&
+               lhs.position == rhs.position
+    }
+}
+
+/// Represents a transition between states
+public struct StateTransition {
+    public let from: String
+    public let to: String
+    public let label: String?
+    
+    public init(from: String, to: String, label: String? = nil) {
+        self.from = from
+        self.to = to
+        self.label = label
+    }
+}
+
+/// Represents a complete state diagram
+public struct StateDiagram {
+    public let states: [StateEntity]
+    public let transitions: [StateTransition]
+    
+    public init(states: [StateEntity], transitions: [StateTransition]) {
+        self.states = states
+        self.transitions = transitions
+    }
+}
+
 // MARK: - Sequence Diagram Data Structures
 
 /// Represents a message in a sequence diagram
@@ -1144,8 +1195,216 @@ public class MermaidParser {
     }
     
     private func parseStateDiagram(_ text: String) -> MermaidDiagram {
-        // Simplified implementation
-        return MermaidDiagram(type: .stateDiagram, rawText: text)
+        var states: [String: StateEntity] = [:]
+        var transitions: [StateTransition] = []
+        
+        let lines = text.components(separatedBy: .newlines)
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            // Skip empty lines and diagram declaration
+            if trimmedLine.isEmpty || 
+               trimmedLine.lowercased().hasPrefix("statediagram") ||
+               trimmedLine.lowercased().hasPrefix("---") ||
+               trimmedLine.lowercased().hasPrefix("title:") {
+                continue
+            }
+            
+            // Parse state definitions and transitions
+            if trimmedLine.contains("-->") {
+                // Parse transition: from --> to or from --> to : label
+                parseStateTransition(trimmedLine, states: &states, transitions: &transitions)
+            } else if trimmedLine.contains(":") && !trimmedLine.contains("-->") {
+                // Parse state with description: stateId : description
+                parseStateDescription(trimmedLine, states: &states)
+            } else if trimmedLine.hasPrefix("state ") {
+                // Parse state declaration: state "description" as stateId
+                parseStateDeclaration(trimmedLine, states: &states)
+            } else if !trimmedLine.contains("-->") && !trimmedLine.contains(":") {
+                // Simple state id
+                let stateId = trimmedLine.trimmingCharacters(in: .whitespaces)
+                if !stateId.isEmpty && stateId != "[*]" {
+                    if states[stateId] == nil {
+                        states[stateId] = StateEntity(id: stateId)
+                    }
+                }
+            }
+        }
+        
+        // Calculate positions for states
+        let positionedStates = calculateStatePositions(Array(states.values))
+        
+        let stateDiagram = StateDiagram(states: positionedStates, transitions: transitions)
+        
+        let parsedData: [String: Any] = [
+            "stateDiagram": stateDiagram
+        ]
+        
+        return MermaidDiagram(type: .stateDiagram, rawText: text, parsedData: parsedData)
+    }
+    
+    private func parseStateTransition(_ line: String, states: inout [String: StateEntity], transitions: inout [StateTransition]) {
+        let parts = line.components(separatedBy: "-->")
+        if parts.count >= 2 {
+            let fromPart = parts[0].trimmingCharacters(in: .whitespaces)
+            let toPart = parts[1].trimmingCharacters(in: .whitespaces)
+            
+            // Check if there's a label after colon
+            var toState = toPart
+            var label: String? = nil
+            
+            if toPart.contains(":") {
+                let toComponents = toPart.components(separatedBy: ":")
+                if toComponents.count >= 2 {
+                    toState = toComponents[0].trimmingCharacters(in: .whitespaces)
+                    label = toComponents[1].trimmingCharacters(in: .whitespaces)
+                }
+            }
+            
+            // Handle start and end states
+            let fromStateId: String
+            let toStateId: String
+            
+            if fromPart == "[*]" {
+                fromStateId = "[*]"
+                // Mark the target state as having a start transition
+                if states[toState] == nil {
+                    states[toState] = StateEntity(id: toState)
+                }
+            } else {
+                fromStateId = fromPart
+                if states[fromStateId] == nil {
+                    states[fromStateId] = StateEntity(id: fromStateId)
+                }
+            }
+            
+            if toState == "[*]" {
+                toStateId = "[*]"
+                // Mark the source state as having an end transition
+                if let existingState = states[fromStateId] {
+                    states[fromStateId] = StateEntity(
+                        id: existingState.id,
+                        description: existingState.description,
+                        isStart: existingState.isStart,
+                        isEnd: true,
+                        position: existingState.position
+                    )
+                }
+            } else {
+                toStateId = toState
+                if states[toStateId] == nil {
+                    states[toStateId] = StateEntity(id: toStateId)
+                }
+            }
+            
+            let transition = StateTransition(from: fromStateId, to: toStateId, label: label)
+            transitions.append(transition)
+        }
+    }
+    
+    private func parseStateDescription(_ line: String, states: inout [String: StateEntity]) {
+        let parts = line.components(separatedBy: ":")
+        if parts.count >= 2 {
+            let stateId = parts[0].trimmingCharacters(in: .whitespaces)
+            let description = parts[1].trimmingCharacters(in: .whitespaces)
+            
+            if let existingState = states[stateId] {
+                states[stateId] = StateEntity(
+                    id: existingState.id,
+                    description: description,
+                    isStart: existingState.isStart,
+                    isEnd: existingState.isEnd,
+                    position: existingState.position
+                )
+            } else {
+                states[stateId] = StateEntity(id: stateId, description: description)
+            }
+        }
+    }
+    
+    private func parseStateDeclaration(_ line: String, states: inout [String: StateEntity]) {
+        // Parse: state "description" as stateId
+        if line.contains(" as ") {
+            let parts = line.components(separatedBy: " as ")
+            if parts.count >= 2 {
+                let stateId = parts[1].trimmingCharacters(in: .whitespaces)
+                
+                // Extract description part more carefully
+                var descriptionPart = parts[0].trimmingCharacters(in: .whitespaces)
+                if descriptionPart.lowercased().hasPrefix("state ") {
+                    descriptionPart = String(descriptionPart.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+                }
+                
+                var description = descriptionPart
+                // Remove quotes if present
+                if (description.hasPrefix("\"") && description.hasSuffix("\"")) || 
+                   (description.hasPrefix("'") && description.hasSuffix("'")) {
+                    description = String(description.dropFirst().dropLast())
+                }
+                
+                if let existingState = states[stateId] {
+                    states[stateId] = StateEntity(
+                        id: existingState.id,
+                        description: description,
+                        isStart: existingState.isStart,
+                        isEnd: existingState.isEnd,
+                        position: existingState.position
+                    )
+                } else {
+                    states[stateId] = StateEntity(id: stateId, description: description)
+                }
+            }
+        }
+    }
+    
+    private func calculateStatePositions(_ states: [StateEntity]) -> [StateEntity] {
+        let statesPerRow = 4
+        let horizontalSpacing: CGFloat = 120
+        let verticalSpacing: CGFloat = 80
+        let padding: CGFloat = 60
+        
+        var positionedStates: [StateEntity] = []
+        
+        // Separate start states, regular states, and end states
+        let startStates = states.filter { $0.isStart || hasIncomingFromStart(stateId: $0.id, states: states) }
+        let endStates = states.filter { $0.isEnd || hasOutgoingToEnd(stateId: $0.id, states: states) }
+        let regularStates = states.filter { state in
+            !startStates.contains { $0.id == state.id } && !endStates.contains { $0.id == state.id }
+        }
+        
+        var currentY = padding
+        var allStates = startStates + regularStates + endStates
+        
+        for (index, state) in allStates.enumerated() {
+            let row = index / statesPerRow
+            let col = index % statesPerRow
+            
+            let x = padding + CGFloat(col) * horizontalSpacing
+            let y = currentY + CGFloat(row) * verticalSpacing
+            
+            let positionedState = StateEntity(
+                id: state.id,
+                description: state.description,
+                isStart: state.isStart,
+                isEnd: state.isEnd,
+                position: CGPoint(x: x, y: y)
+            )
+            
+            positionedStates.append(positionedState)
+        }
+        
+        return positionedStates
+    }
+    
+    private func hasIncomingFromStart(stateId: String, states: [StateEntity]) -> Bool {
+        // This would need access to transitions, simplified for now
+        return false
+    }
+    
+    private func hasOutgoingToEnd(stateId: String, states: [StateEntity]) -> Bool {
+        // This would need access to transitions, simplified for now
+        return false
     }
     
     private func parseGantt(_ text: String) -> MermaidDiagram {
