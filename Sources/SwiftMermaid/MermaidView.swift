@@ -182,6 +182,9 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         case .gantt:
             return calculateGanttSize(diagram: diagram)
             
+        case .stateDiagram:
+            return calculateStateDiagramSize(diagram: diagram)
+            
         default:
             // 默认尺寸
             return CGSize(width: 800, height: 600)
@@ -348,6 +351,73 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         return CGSize(
             width: requiredWidth,
             height: max(400, requiredHeight)
+        )
+    }
+    
+    private func calculateStateDiagramSize(diagram: MermaidDiagram) -> CGSize {
+        // 从 parsedData 中获取状态图信息
+        guard let stateDiagram = diagram.parsedData["stateDiagram"] as? StateDiagram else {
+            return CGSize(width: 1000, height: 800) // 默认较大尺寸
+        }
+        
+        let stateSpacing: CGFloat = 150 // 状态之间的间距
+        let stateHeight: CGFloat = 80 // 状态高度
+        let stateWidth: CGFloat = 120 // 状态宽度
+        let padding: CGFloat = 150 // 边距
+        
+        // 获取状态数量
+        let stateCount = stateDiagram.states.count
+        if stateCount == 0 {
+            return CGSize(width: 1000, height: 800)
+        }
+        
+        // 计算嵌套状态（复合状态）的数量
+        let nestedStateCount = stateDiagram.states.filter { $0.isComposite }.count
+        
+        // 获取转换数量
+        let transitionCount = stateDiagram.transitions.count
+        
+        // 估算图表的复杂度
+        let complexity = max(stateCount, 1) * (1 + Double(nestedStateCount) * 0.5)
+        
+        // 根据状态图的方向调整宽高比
+        let isHorizontal = diagram.rawText.contains("direction LR") || diagram.rawText.contains("direction RL")
+        
+        // 计算所需的宽度和高度
+        var requiredWidth: CGFloat
+        var requiredHeight: CGFloat
+        
+        if isHorizontal {
+            // 水平方向的状态图
+            let columns = ceil(sqrt(Double(stateCount)) * 1.5)
+            let rows = ceil(Double(stateCount) / columns)
+            
+            requiredWidth = CGFloat(columns) * (stateWidth + stateSpacing) + padding * 2
+            requiredHeight = CGFloat(rows) * (stateHeight + stateSpacing) + padding * 2
+            
+            // 考虑转换线的空间
+            requiredWidth += CGFloat(transitionCount) * 10
+        } else {
+            // 垂直方向的状态图
+            let rows = ceil(sqrt(Double(stateCount)) * 1.5)
+            let columns = ceil(Double(stateCount) / rows)
+            
+            requiredWidth = CGFloat(columns) * (stateWidth + stateSpacing) + padding * 2
+            requiredHeight = CGFloat(rows) * (stateHeight + stateSpacing) + padding * 2
+            
+            // 考虑转换线的空间
+            requiredHeight += CGFloat(transitionCount) * 10
+        }
+        
+        // 为复杂状态图提供更多空间
+        let complexityFactor = CGFloat(1.0 + min(complexity * 0.1, 2.0))
+        requiredWidth *= complexityFactor
+        requiredHeight *= complexityFactor
+        
+        // 确保最小尺寸
+        return CGSize(
+            width: max(1000, requiredWidth),
+            height: max(800, requiredHeight)
         )
     }
     

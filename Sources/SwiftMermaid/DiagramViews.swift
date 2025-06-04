@@ -679,10 +679,6 @@ public struct PieChartView: View {
         let availableWidth = size.width - 40 // 减去padding
         let availableHeight = size.height - 80 // 减去padding和标题空间
         
-        // 根据数据项数量调整布局
-        let legendItemHeight: CGFloat = dataCount <= 4 ? 40 : (dataCount <= 8 ? 35 : 30)
-        let totalLegendHeight = CGFloat(dataCount) * legendItemHeight
-        
         // 计算饼图大小，给图例留出更多空间
         let minPieSize: CGFloat = 200
         let maxPieSize = min(availableHeight * 0.85, availableWidth * 0.45) // 减少饼图占比，给图例更多空间
