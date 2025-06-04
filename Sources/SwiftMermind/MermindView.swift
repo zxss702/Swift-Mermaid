@@ -252,25 +252,53 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     }
     
     private func calculateClassDiagramSize(diagram: MermaidDiagram) -> CGSize {
-        let classWidth: CGFloat = 200
-        let classHeight: CGFloat = 150
-        let spacing: CGFloat = 50
+        let spacing: CGFloat = 80
         let padding: CGFloat = 100
+        let classesPerRow = 3
         
-        // 从 parsedData 或 nodes 中获取类的数量
-        let classes = diagram.parsedData["classes"] as? [Any] ?? []
-        let classCount = max(classes.count, diagram.nodes.count)
-        
-        if classCount == 0 {
+        // 从 parsedData 中获取类的信息
+        guard let classes = diagram.parsedData["classes"] as? [ClassEntity], !classes.isEmpty else {
             return CGSize(width: 800, height: 600)
         }
         
-        // 简单的网格布局计算
-        let cols = Int(ceil(sqrt(Double(classCount))))
-        let rows = Int(ceil(Double(classCount) / Double(cols)))
+        // 计算每个类的实际尺寸
+        var maxClassWidth: CGFloat = 120
+        var totalHeight: CGFloat = 0
         
-        let requiredWidth = CGFloat(cols) * (classWidth + spacing) - spacing + padding * 2
-        let requiredHeight = CGFloat(rows) * (classHeight + spacing) - spacing + padding * 2
+        for classEntity in classes {
+            // 计算类名宽度
+            let nameWidth = CGFloat(classEntity.name.count * 8) + 16
+            
+            // 计算属性宽度
+            let attributeWidths = classEntity.attributes.map { attribute in
+                CGFloat("\(attribute.visibility.symbol)\(attribute.type) \(attribute.name)".count * 7)
+            }
+            
+            // 计算方法宽度
+            let methodWidths = classEntity.methods.map { method in
+                CGFloat("\(method.visibility.symbol)\(method.name)()".count * 7)
+            }
+            
+            // 找到最大宽度
+            let classWidth = ([nameWidth] + attributeWidths + methodWidths).max() ?? 120
+            maxClassWidth = max(maxClassWidth, classWidth + 16)
+            
+            // 计算类的高度
+            let headerHeight: CGFloat = 30
+            let attributesHeight = classEntity.attributes.isEmpty ? 0 : CGFloat(classEntity.attributes.count) * 20 + 8
+            let methodsHeight = classEntity.methods.isEmpty ? 0 : CGFloat(classEntity.methods.count) * 20 + 8
+            let separatorHeight: CGFloat = (classEntity.attributes.isEmpty ? 0 : 1) + (classEntity.methods.isEmpty ? 0 : 1)
+            
+            let classHeight = headerHeight + attributesHeight + methodsHeight + separatorHeight
+            totalHeight = max(totalHeight, classHeight)
+        }
+        
+        // 计算布局
+        let cols = min(classesPerRow, classes.count)
+        let rows = Int(ceil(Double(classes.count) / Double(cols)))
+        
+        let requiredWidth = CGFloat(cols) * (maxClassWidth + spacing) - spacing + padding * 2
+        let requiredHeight = CGFloat(rows) * (totalHeight + spacing) - spacing + padding * 2
         
         return CGSize(
             width: max(800, requiredWidth),

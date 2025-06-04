@@ -17,7 +17,7 @@ public enum DiagramType {
 // MARK: - Class Diagram Data Structures
 
 /// Represents a class in a class diagram
-public struct ClassEntity {
+public struct ClassEntity: Equatable {
     public let name: String
     public let attributes: [ClassAttribute]
     public let methods: [ClassMethod]
@@ -29,10 +29,17 @@ public struct ClassEntity {
         self.methods = methods
         self.position = position
     }
+    
+    public static func == (lhs: ClassEntity, rhs: ClassEntity) -> Bool {
+        return lhs.name == rhs.name &&
+               lhs.attributes == rhs.attributes &&
+               lhs.methods == rhs.methods &&
+               lhs.position == rhs.position
+    }
 }
 
 /// Represents an attribute in a class
-public struct ClassAttribute {
+public struct ClassAttribute: Equatable {
     public let name: String
     public let type: String
     public let visibility: ClassVisibility
@@ -45,7 +52,7 @@ public struct ClassAttribute {
 }
 
 /// Represents a method in a class
-public struct ClassMethod {
+public struct ClassMethod: Equatable {
     public let name: String
     public let returnType: String?
     public let parameters: [String]
@@ -1037,18 +1044,87 @@ public class MermaidParser {
     }
     
     private func calculateClassPositions(_ classes: [ClassEntity]) -> [ClassEntity] {
-        let classSpacing: CGFloat = 200
-        let rowHeight: CGFloat = 150
         let classesPerRow = 3
+        let horizontalSpacing: CGFloat = 80
+        let verticalSpacing: CGFloat = 80
+        let padding: CGFloat = 100
         
         var positionedClasses: [ClassEntity] = []
+        var maxClassWidths: [CGFloat] = []
+        var rowHeights: [CGFloat] = []
+        
+        // 首先计算每个类的实际尺寸
+         for (index, classEntity) in classes.enumerated() {
+             // 计算类名宽度
+             let nameWidth = CGFloat(classEntity.name.count * 8) + 16
+             
+             // 计算属性宽度
+             let attributeWidths = classEntity.attributes.map { attribute in
+                 CGFloat("\(attribute.visibility.symbol)\(attribute.type) \(attribute.name)".count * 7)
+             }
+             
+             // 计算方法宽度
+             let methodWidths = classEntity.methods.map { method in
+                 CGFloat("\(method.visibility.symbol)\(method.name)()".count * 7)
+             }
+             
+             // 计算类的宽度
+             let classWidth = ([nameWidth] + attributeWidths + methodWidths).max() ?? 120
+             maxClassWidths.append(classWidth + 16)
+             
+             // 计算类的高度
+             let headerHeight: CGFloat = 30
+             let attributesHeight = classEntity.attributes.isEmpty ? 0 : CGFloat(classEntity.attributes.count) * 20 + 8
+             let methodsHeight = classEntity.methods.isEmpty ? 0 : CGFloat(classEntity.methods.count) * 20 + 8
+             let separatorHeight: CGFloat = (classEntity.attributes.isEmpty ? 0 : 1) + (classEntity.methods.isEmpty ? 0 : 1)
+             
+             let classHeight = headerHeight + attributesHeight + methodsHeight + separatorHeight
+             
+             let row = index / classesPerRow
+             if row >= rowHeights.count {
+                 rowHeights.append(classHeight)
+             } else {
+                 rowHeights[row] = max(rowHeights[row], classHeight)
+             }
+         }
+        
+        // 计算每行的最大宽度
+        var rowMaxWidths: [CGFloat] = []
+        let totalRows = Int(ceil(Double(classes.count) / Double(classesPerRow)))
+        
+        for row in 0..<totalRows {
+            var rowMaxWidth: CGFloat = 0
+            let startIndex = row * classesPerRow
+            let endIndex = min(startIndex + classesPerRow, classes.count)
+            
+            for i in startIndex..<endIndex {
+                rowMaxWidth = max(rowMaxWidth, maxClassWidths[i])
+            }
+            rowMaxWidths.append(rowMaxWidth)
+        }
+        
+        // 现在根据实际尺寸定位类
+        var currentY = padding
         
         for (index, classEntity) in classes.enumerated() {
             let row = index / classesPerRow
             let col = index % classesPerRow
             
-            let x = CGFloat(col) * classSpacing + 100
-            let y = CGFloat(row) * rowHeight + 100
+            // 计算X位置 - 在行内居中分布
+            let classesInThisRow = min(classesPerRow, classes.count - row * classesPerRow)
+            let totalRowWidth = CGFloat(classesInThisRow) * rowMaxWidths[row] + CGFloat(classesInThisRow - 1) * horizontalSpacing
+            let startX = padding
+            let x = startX + CGFloat(col) * (rowMaxWidths[row] + horizontalSpacing) + rowMaxWidths[row] / 2
+            
+            // 计算Y位置
+            let y: CGFloat
+            if row == 0 {
+                y = currentY + rowHeights[row] / 2
+            } else {
+                y = rowHeights[0..<row].reduce(padding) { sum, height in
+                    sum + height + verticalSpacing
+                } + rowHeights[row] / 2
+            }
             
             let positionedClass = ClassEntity(
                 name: classEntity.name,
