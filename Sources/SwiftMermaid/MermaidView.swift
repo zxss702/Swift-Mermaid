@@ -371,14 +371,14 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
             return CGSize(width: 1000, height: 800)
         }
         
-        // 计算嵌套状态（复合状态）的数量
-        let nestedStateCount = stateDiagram.states.filter { $0.isEnd }.count
+        // 计算嵌套状态（复合状态）的数量 - 暂时设为0，因为当前StateEntity没有isComposite属性
+        let nestedStateCount = 0
         
         // 获取转换数量
         let transitionCount = stateDiagram.transitions.count
         
         // 估算图表的复杂度
-        let complexity = max(stateCount, 1) * (1 + nestedStateCount / 2)
+        let complexity = max(stateCount, 1) * (1 + Double(nestedStateCount) * 0.5)
         
         // 根据状态图的方向调整宽高比
         let isHorizontal = diagram.rawText.contains("direction LR") || diagram.rawText.contains("direction RL")
@@ -410,7 +410,7 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         }
         
         // 为复杂状态图提供更多空间
-        let complexityFactor = CGFloat(1.0 + min(Double(complexity) * 0.1, 2.0))
+        let complexityFactor = CGFloat(1.0 + min(complexity * 0.1, 2.0))
         requiredWidth *= complexityFactor
         requiredHeight *= complexityFactor
         

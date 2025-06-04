@@ -327,7 +327,7 @@ public struct StateDiagramView: View {
     }
     
     private func drawState(context: GraphicsContext, state: StateEntity) {
-        let stateSize = CGSize(width: 80, height: 40)
+        let stateSize = CGSize(width: 120, height: 60)
         let rect = CGRect(
             x: state.position.x - stateSize.width / 2,
             y: state.position.y - stateSize.height / 2,
@@ -366,7 +366,7 @@ public struct StateDiagramView: View {
             
             context.draw(
                 Text(displayText)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.primary),
                 in: textRect
             )
