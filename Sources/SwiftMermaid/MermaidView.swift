@@ -45,22 +45,34 @@ public struct mermaidView: View {
             switch diagram.type {
             case .flowchart:
                 FlowchartView(diagram: diagram)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .sequenceDiagram:
                 SequenceDiagramView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .classDiagram:
                 ClassDiagramView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .stateDiagram:
                 StateDiagramView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .gantt:
                 GanttChartView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .timeline:
+                TimelineView(diagram: diagram)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .pie:
                 PieChartView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .gitGraph:
                 GitGraphView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .erDiagram:
                 ERDiagramView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .userJourney:
                 UserJourneyView(diagram: diagram, size: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .unknown:
                 Text("Unsupported diagram type")
                     .foregroundColor(.red)
@@ -122,6 +134,9 @@ struct ZoomableScrollView: UIViewControllerRepresentable {
             case .gantt:
                 GanttChartView(diagram: diagram, size: size)
                     .frame(width: size.width, height: size.height)
+            case .timeline:
+                TimelineView(diagram: diagram)
+                    .frame(width: size.width, height: size.height)
             case .pie:
                 PieChartView(diagram: diagram, size: size)
                     .frame(width: size.width, height: size.height)
@@ -182,6 +197,9 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         case .gantt:
             return calculateGanttSize(diagram: diagram)
             
+        case .timeline:
+            return calculateTimelineSize(diagram: diagram)
+            
         case .stateDiagram:
             return calculateStateDiagramSize(diagram: diagram)
             
@@ -192,11 +210,9 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     }
     
     private func calculateFlowchartSize(diagram: MermaidDiagram) -> CGSize {
-        let nodeSpacing: CGFloat = 150
-        let levelSpacing: CGFloat = 100
-        let minWidth: CGFloat = 400
-        let minHeight: CGFloat = 300
-        let padding: CGFloat = 100
+        let nodeSpacing: CGFloat = 20  // 与FlowchartView中的minNodeSpacing保持一致
+        let levelSpacing: CGFloat = 50  // 与FlowchartView中的minLevelSpacing保持一致
+        let padding: CGFloat = 60  // 增加padding以确保内容完全显示
         
         // 计算层级结构
         var levels: [Int: [Node]] = [:]
@@ -208,17 +224,19 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
             levels[level]?.append(node)
         }
         
-        // 计算所需宽度（基于最宽的层级）
+        // 计算所需宽度（基于最宽的层级，考虑节点实际大小）
         let maxNodesInLevel = levels.values.map { $0.count }.max() ?? 1
-        let requiredWidth = CGFloat(maxNodesInLevel) * nodeSpacing + padding
+        let estimatedNodeWidth: CGFloat = 140  // 增加估算的节点宽度
+        let requiredWidth = CGFloat(maxNodesInLevel) * estimatedNodeWidth + CGFloat(maxNodesInLevel - 1) * nodeSpacing + padding * 2
         
-        // 计算所需高度（基于层级数量）
+        // 计算所需高度（基于层级数量，考虑节点实际高度）
         let levelCount = levels.keys.count
-        let requiredHeight = CGFloat(levelCount) * levelSpacing + padding
+        let estimatedNodeHeight: CGFloat = 70  // 增加估算的节点高度
+        let requiredHeight = CGFloat(levelCount) * estimatedNodeHeight + CGFloat(levelCount - 1) * levelSpacing + padding * 2
         
         return CGSize(
-            width: max(minWidth, requiredWidth),
-            height: max(minHeight, requiredHeight)
+            width: requiredWidth,
+            height: requiredHeight
         )
     }
     
@@ -249,8 +267,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         let requiredHeight = baseHeight + messageHeight + noteHeight + padding
         
         return CGSize(
-            width: max(800, requiredWidth),
-            height: max(400, requiredHeight)
+            width: requiredWidth,
+            height: requiredHeight
         )
     }
     
@@ -304,8 +322,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         let requiredHeight = CGFloat(rows) * (totalHeight + spacing) - spacing + padding * 2
         
         return CGSize(
-            width: max(800, requiredWidth),
-            height: max(600, requiredHeight)
+            width: requiredWidth,
+            height: requiredHeight
         )
     }
     
@@ -326,8 +344,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         let requiredHeight = CGFloat(branchCount) * branchSpacing + padding * 2
         
         return CGSize(
-            width: max(800, requiredWidth),
-            height: max(400, requiredHeight)
+            width: requiredWidth,
+            height: requiredHeight
         )
     }
     
@@ -350,8 +368,85 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         return CGSize(
             width: requiredWidth,
-            height: max(400, requiredHeight)
+            height: requiredHeight
         )
+    }
+    
+    private func getTextSize(_ content: String, font: CGFloat) -> CGSize {
+        NSAttributedString(string: content, attributes: [.font: UIFont.systemFont(ofSize: font)]).size()
+    }
+    private func calculateTimelineSize(diagram: MermaidDiagram) -> CGSize {
+        // 从 parsedData 中获取时间线信息
+        guard let timelineEvents = diagram.parsedData["events"] as? [TimelineEvent] else {
+            return CGSize(width: 30, height: 30)
+        }
+        
+        if timelineEvents.isEmpty {
+            return CGSize(width: 60, height: 30)
+        }
+        
+        // 获取标题
+        let title = (diagram.parsedData["title"] as? String) ?? ""
+        
+        // 按时期分组事件
+        var grouped: [String: [String]] = [:]
+        var periodOrder: [String] = []
+        
+        for event in timelineEvents {
+            if grouped[event.period] == nil {
+                grouped[event.period] = []
+                periodOrder.append(event.period)
+            }
+            grouped[event.period]?.append(event.event)
+        }
+        
+        let groupedEvents = periodOrder.map { period in
+            (period: period, events: grouped[period] ?? [])
+        }
+        
+        let verticalSpacing: CGFloat = 16 
+        let horizontalPadding: CGFloat = 24
+
+        // 计算宽度：基于实际内容需求
+
+        var totalWidth: CGFloat = horizontalPadding
+        for group in groupedEvents {
+            // 计算时期标题宽度
+            let periodTitleWidth = getTextSize(group.period, font: 17).width + 24 // 简化计算
+            let maxEventWidth = group.events.map { getTextSize($0, font: 17).width }.max() ?? 100
+            totalWidth += max(periodTitleWidth, maxEventWidth) + 42
+        }
+        
+        // 计算高度：更精确的计算
+        var totalHeight: CGFloat = verticalSpacing + 4 // 顶部间距
+        
+        // 标题高度（简化计算）
+        if !title.isEmpty {
+            totalHeight += getTextSize(title, font: 24).height + 12 // 减少标题下方间距
+        }
+        
+        // 计算最高的时期高度
+        var maxPeriodHeight: CGFloat = 0
+        
+        for group in groupedEvents {
+            var periodHeight: CGFloat = 0
+            
+            // 时期标题高度（简化）
+            periodHeight += getTextSize(group.period, font: 17).height + 20
+            
+            // 事件高度（更紧凑）
+            group.events.forEach {
+                periodHeight += getTextSize($0, font: 17).height + 8
+            }
+            periodHeight -= 8
+            
+            maxPeriodHeight = max(maxPeriodHeight, periodHeight)
+        }
+        
+        totalHeight += maxPeriodHeight + verticalSpacing // 底部间距
+        
+        
+        return CGSize(width: totalWidth, height: totalHeight)
     }
     
     private func calculateStateDiagramSize(diagram: MermaidDiagram) -> CGSize {
@@ -416,8 +511,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         // 确保最小尺寸
         return CGSize(
-            width: max(1000, requiredWidth),
-            height: max(800, requiredHeight)
+            width: requiredWidth,
+            height: requiredHeight
         )
     }
     
@@ -567,18 +662,17 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        let safeAreaInsets = scrollView.window?.safeAreaInsets ?? UIEdgeInsets.zero
         let scaledContentSize = CGSize(
             width: contentSize.width * scrollView.zoomScale,
             height: contentSize.height * scrollView.zoomScale
         )
         
         scrollView.contentInset.left = max(
-            (view.bounds.width + safeAreaInsets.left + safeAreaInsets.right - scaledContentSize.width) / 2,
+            (view.bounds.width - scaledContentSize.width) / 2,
             rootView.leftIns
         )
         scrollView.contentInset.top = max(
-            (view.bounds.height + safeAreaInsets.top + safeAreaInsets.bottom - scaledContentSize.height) / 2,
+            (view.bounds.height - scaledContentSize.height) / 2,
             rootView.topIns
         )
     }

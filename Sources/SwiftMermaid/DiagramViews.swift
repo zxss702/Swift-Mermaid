@@ -823,6 +823,123 @@ public struct ERDiagramView: View {
     }
 }
 
+// MARK: - Timeline View
+
+/// A view that renders a timeline diagram
+public struct TimelineView: View {
+    private let diagram: MermaidDiagram
+    
+    public init(diagram: MermaidDiagram) {
+        self.diagram = diagram
+    }
+    
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Title
+            if !title.isEmpty {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+            }
+                
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(height: 2)
+            
+            // Timeline
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(groupedEvents.indices, id: \.self) { index in
+                    TimelinePeriodView(
+                        period: groupedEvents[index].period,
+                        events: groupedEvents[index].events,
+                        isLast: index == groupedEvents.count - 1
+                    )
+                }
+            }
+            .padding(.horizontal, 12)
+        }
+        .padding(.vertical, 16)
+    }
+    
+    private var title: String {
+        return (diagram.parsedData["title"] as? String) ?? ""
+    }
+    
+    private var events: [TimelineEvent] {
+        return (diagram.parsedData["events"] as? [TimelineEvent]) ?? []
+    }
+    
+    private var groupedEvents: [(period: String, events: [String])] {
+        var grouped: [String: [String]] = [:]
+        var order: [String] = []
+        
+        for event in events {
+            if grouped[event.period] == nil {
+                grouped[event.period] = []
+                order.append(event.period)
+            }
+            grouped[event.period]?.append(event.event)
+        }
+        
+        return order.map { period in
+            (period: period, events: grouped[period] ?? [])
+        }
+    }
+}
+
+/// A view that renders a single period in the timeline
+public struct TimelinePeriodView: View {
+    let period: String
+    let events: [String]
+    let isLast: Bool
+    
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Period header
+            Text(period)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.blue)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.leading, 4)
+            // Events
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(events.indices, id: \.self) { index in
+                    HStack(alignment: .top, spacing: 8) {
+                        // Event bullet
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 8, height: 8)
+                            .padding(.top, 6)
+                        
+                        // Event text
+                        Text(events[index])
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.leading, 8 + 2)
+           
+        }
+        .padding(.top, 2)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 2)
+                .padding(.bottom, 4)
+        }
+        .padding(.trailing, 16)
+    }
+}
+
 // MARK: - User Journey View
 
 /// A view that renders a user journey diagram

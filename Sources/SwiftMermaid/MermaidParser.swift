@@ -7,6 +7,7 @@ public enum DiagramType {
     case classDiagram
     case stateDiagram
     case gantt
+    case timeline
     case pie
     case gitGraph
     case erDiagram
@@ -267,7 +268,7 @@ public struct Node: Identifiable {
 }
 
 /// Represents the shape of a node
-public enum NodeShape {
+public enum NodeShape: Equatable {
     case rectangle
     case roundedRectangle
     case circle
@@ -277,6 +278,24 @@ public enum NodeShape {
     case trapezoid
     case database
     case custom(String)
+    
+    public static func == (lhs: NodeShape, rhs: NodeShape) -> Bool {
+        switch (lhs, rhs) {
+        case (.rectangle, .rectangle),
+             (.roundedRectangle, .roundedRectangle),
+             (.circle, .circle),
+             (.diamond, .diamond),
+             (.hexagon, .hexagon),
+             (.parallelogram, .parallelogram),
+             (.trapezoid, .trapezoid),
+             (.database, .database):
+            return true
+        case (.custom(let lhsValue), .custom(let rhsValue)):
+            return lhsValue == rhsValue
+        default:
+            return false
+        }
+    }
 }
 
 /// Represents the style of a node
@@ -372,6 +391,27 @@ public enum EdgeType: Equatable {
     }
 }
 
+// MARK: - Timeline Data Structures
+
+/// Represents an event in a timeline diagram
+public struct TimelineEvent: Equatable {
+    public let period: String
+    public let event: String
+    public let position: CGPoint
+    
+    public init(period: String, event: String, position: CGPoint = .zero) {
+        self.period = period
+        self.event = event
+        self.position = position
+    }
+    
+    public static func == (lhs: TimelineEvent, rhs: TimelineEvent) -> Bool {
+        return lhs.period == rhs.period &&
+               lhs.event == rhs.event &&
+               lhs.position == rhs.position
+    }
+}
+
 /// Parser for Mermaid diagram syntax
 public class MermaidParser {
     public init() {}
@@ -400,6 +440,8 @@ public class MermaidParser {
             return parseStateDiagram(text)
         case .gantt:
             return parseGantt(text)
+        case .timeline:
+            return parseTimeline(text)
         case .pie:
             return parsePieChart(text)
         case .gitGraph:
@@ -426,6 +468,8 @@ public class MermaidParser {
             return .stateDiagram
         } else if lowercasedLine.hasPrefix("gantt") {
             return .gantt
+        } else if lowercasedLine.hasPrefix("timeline") {
+            return .timeline
         } else if lowercasedLine.hasPrefix("pie") {
             return .pie
         } else if lowercasedLine.hasPrefix("gitgraph") {
@@ -1476,6 +1520,58 @@ public class MermaidParser {
     private func parseERDiagram(_ text: String) -> MermaidDiagram {
         // Simplified implementation
         return MermaidDiagram(type: .erDiagram, rawText: text)
+    }
+    
+    private func parseTimeline(_ text: String) -> MermaidDiagram {
+        var timelineEvents: [TimelineEvent] = []
+        var title = ""
+        
+        let lines = text.components(separatedBy: .newlines)
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            // Skip empty lines and timeline declaration
+            if trimmedLine.isEmpty || trimmedLine.hasPrefix("timeline") {
+                continue
+            }
+            
+            // Skip comments (lines starting with %%)
+            if trimmedLine.hasPrefix("%%") {
+                continue
+            }
+            
+            // Parse title
+            if trimmedLine.hasPrefix("title") {
+                title = String(trimmedLine.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                continue
+            }
+            
+            // Parse timeline events
+            if let colonIndex = trimmedLine.firstIndex(of: ":") {
+                let period = String(trimmedLine[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+                let eventsString = String(trimmedLine[trimmedLine.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
+                
+                // Split events by comma or newline
+                let events = eventsString.components(separatedBy: CharacterSet(charactersIn: ",\n"))
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                
+                for event in events {
+                    timelineEvents.append(TimelineEvent(
+                        period: period,
+                        event: event,
+                        position: CGPoint(x: 0, y: 0)
+                    ))
+                }
+            }
+        }
+        
+        var parsedData: [String: Any] = [:]
+        parsedData["events"] = timelineEvents
+        parsedData["title"] = title
+        
+        return MermaidDiagram(type: .timeline, rawText: text, parsedData: parsedData)
     }
     
     private func parseUserJourney(_ text: String) -> MermaidDiagram {

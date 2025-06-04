@@ -7,6 +7,7 @@
 - ✅ **流程图 (Flowchart diagrams)** - 完全实现，支持节点形状和边连接
 - ✅ **时序图 (Sequence diagrams)** - 基本实现，支持参与者和消息
 - ✅ **饼图 (Pie charts)** - 数据可视化，支持自定义颜色
+- ✅ **时间线图 (Timeline diagrams)** - 完全实现，支持时间轴和事件展示
 - 🚧 **类图 (Class diagrams)** - 即将推出
 - 🚧 **状态图 (State diagrams)** - 即将推出
 - 🚧 **甘特图 (Gantt charts)** - 即将推出
@@ -123,6 +124,23 @@ mermaidView(text: """
 """)
 ```
 
+### 时间线图示例
+
+```swift
+mermaidView(text: """
+    timeline
+        title History of Social Media Platform
+        
+        2002 : LinkedIn
+        2004 : Facebook
+             : Google
+        2005 : Youtube
+        2006 : Twitter
+        2010 : Instagram
+        2011 : Snapchat
+""")
+```
+
 ### 使用预定义示例
 
 SwiftMermaid 自带了几个预定义示例：
@@ -161,6 +179,23 @@ mermaidView.classExample()
 
 - **基本语法**: `pie title "Title"`
 - **数据条目**: `"Label" : value`
+
+### 时间线图
+
+- **基本语法**: `timeline`
+- **标题**: `title Timeline Title`
+- **时间段和事件**: `YYYY : Event Name`
+- **多个事件**: 同一时间段可以有多个事件，用换行分隔
+- **示例**:
+  ```
+  timeline
+      title Project Timeline
+      2023 : Planning Phase
+           : Requirements Gathering
+      2024 : Development
+           : Testing
+      2025 : Launch
+  ```
 
 ## 自定义
 
