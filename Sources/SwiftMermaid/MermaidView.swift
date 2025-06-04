@@ -4,7 +4,7 @@ import UIKit
 #endif
 
 /// A SwiftUI view that renders Mermaid diagrams with zoom and scroll capabilities
-public struct mermindView: View {
+public struct mermaidView: View {
     private let scrollable: Bool
     private let text: String
     private let parser: MermaidParser
@@ -516,7 +516,7 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
 #endif
 
 #Preview {
-    mermindView(scrollable: true, text: """
+    mermaidView(scrollable: true, text: """
     graph TD
         A[Start] --> B{Is it?}
         B -->|Yes| C[OK]

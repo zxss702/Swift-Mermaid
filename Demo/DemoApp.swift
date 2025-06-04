@@ -1,16 +1,16 @@
 //
 //  DemoApp.swift
-//  SwiftMermind Demo
+//  SwiftMermaid Demo
 //
-//  A simple demo application to showcase SwiftMermind functionality
+//  A simple demo application to showcase SwiftMermaid functionality
 //  To use this demo:
 //  1. Create a new SwiftUI project in Xcode
-//  2. Add SwiftMermind as a package dependency
+//  2. Add SwiftMermaid as a package dependency
 //  3. Replace the default ContentView with this code
 //
 
 import SwiftUI
-import SwiftMermind
+import SwiftMermaid
 
 @main
 struct DemoApp: App {
@@ -74,7 +74,7 @@ struct DemoContentView: View {
         NavigationView {
             VStack(spacing: 20) {
                 // Title
-                Text("SwiftMermind Demo")
+                Text("SwiftMermaid Demo")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .padding(.top)
@@ -94,7 +94,7 @@ struct DemoContentView: View {
                         .font(.headline)
                         .padding(.bottom, 8)
                     
-                    mermindView(text: examples[selectedExample].1)
+                    mermaidView(text: examples[selectedExample].1)
                         .frame(maxWidth: .infinity, maxHeight: 400)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
@@ -130,7 +130,7 @@ struct DemoContentView: View {
                 Spacer()
                 
                 // Footer
-                Text("Built with SwiftMermind")
+                Text("Built with SwiftMermaid")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.bottom)
@@ -148,7 +148,7 @@ struct DemoContentView: View {
 // MARK: - Additional Demo Views
 
 struct InteractiveDemoView: View {
-    @State private var diagramText = SwiftMermindExamples.flowchartExample
+    @State private var diagramText = SwiftMermaidExamples.flowchartExample
     @State private var showingCodeEditor = false
     
     var body: some View {
@@ -167,7 +167,7 @@ struct InteractiveDemoView: View {
             }
             .padding()
             
-            mermindView(text: diagramText)
+            mermaidView(text: diagramText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(12)

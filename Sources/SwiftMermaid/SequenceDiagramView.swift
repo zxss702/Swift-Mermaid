@@ -1,6 +1,6 @@
 //
 //  SequenceDiagramView.swift
-//  SwiftMermind
+//  SwiftMermaid
 //
 //  A comprehensive view that renders sequence diagrams with full Mermaid support
 //  including participants, messages, notes, activations, and loops

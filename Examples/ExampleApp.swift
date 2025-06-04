@@ -1,13 +1,13 @@
 //
 //  ExampleApp.swift
-//  SwiftMermind Example
+//  SwiftMermaid Example
 //
-//  This file demonstrates how to use SwiftMermind in a real SwiftUI application.
+//  This file demonstrates how to use SwiftMermaid in a real SwiftUI application.
 //  Copy this code into your own project to get started quickly.
 //
 
 import SwiftUI
-import SwiftMermind
+import SwiftMermaid
 
 @main
 struct ExampleApp: App {
@@ -20,7 +20,7 @@ struct ExampleApp: App {
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    @State private var customDiagramText = SwiftMermindExamples.flowchartExample
+    @State private var customDiagramText = SwiftMermaidExamples.flowchartExample
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -32,7 +32,7 @@ struct ContentView: View {
                         .fontWeight(.bold)
                         .padding()
                     
-                    mermindView.flowchartExample()
+                    mermaidView.flowchartExample()
                         .frame(maxWidth: .infinity, maxHeight: 300)
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(12)
@@ -56,7 +56,7 @@ struct ContentView: View {
                         .fontWeight(.bold)
                         .padding()
                     
-                    mermindView.sequenceExample()
+                    mermaidView.sequenceExample()
                         .frame(maxWidth: .infinity, maxHeight: 300)
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(12)
@@ -80,7 +80,7 @@ struct ContentView: View {
                         .fontWeight(.bold)
                         .padding()
                     
-                    mermindView.pieExample()
+                    mermaidView.pieExample()
                         .frame(maxWidth: .infinity, maxHeight: 300)
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(12)
@@ -104,7 +104,7 @@ struct ContentView: View {
                         .fontWeight(.bold)
                         .padding()
                     
-                    mermindView(text: customDiagramText)
+                    mermaidView(text: customDiagramText)
                         .frame(maxWidth: .infinity, maxHeight: 250)
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(12)
@@ -125,17 +125,17 @@ struct ContentView: View {
                     
                     HStack {
                         Button("Flowchart Example") {
-                            customDiagramText = SwiftMermindExamples.flowchartExample
+                            customDiagramText = SwiftMermaidExamples.flowchartExample
                         }
                         .buttonStyle(.bordered)
                         
                         Button("Sequence Example") {
-                            customDiagramText = SwiftMermindExamples.sequenceExample
+                            customDiagramText = SwiftMermaidExamples.sequenceExample
                         }
                         .buttonStyle(.bordered)
                         
                         Button("Pie Example") {
-                            customDiagramText = SwiftMermindExamples.pieExample
+                            customDiagramText = SwiftMermaidExamples.pieExample
                         }
                         .buttonStyle(.bordered)
                     }
@@ -230,7 +230,7 @@ struct DiagramCard: View {
                 .font(.headline)
                 .foregroundColor(.primary)
             
-            mermindView(text: diagram)
+            mermaidView(text: diagram)
                 .frame(height: 200)
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(8)

@@ -1,4 +1,4 @@
-# SwiftMermind
+# SwiftMermaid
 
 一个用于在 SwiftUI 应用中渲染 Mermaid 图表的 Swift 包。该库提供了 Mermaid.js 功能的 SwiftUI 原生实现，允许您直接在 iOS 和 macOS 应用中创建精美的图表。
 
@@ -24,10 +24,10 @@
 
 ### Swift Package Manager
 
-使用 Swift Package Manager 将 SwiftMermind 添加到您的项目中：
+使用 Swift Package Manager 将 SwiftMermaid 添加到您的项目中：
 
 1.  在 Xcode 中，前往 File → Add Package Dependencies
-2.  输入仓库 URL: `https://github.com/zxss702/SwiftMermind`
+2.  输入仓库 URL: `https://github.com/zxss702/SwiftMermaid`
 3.  选择您要使用的版本
 4.  将包添加到您的目标 (target)
 
@@ -35,7 +35,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zxss702/SwiftMermind", from: "1.0.0")
+    .package(url: "https://github.com/zxss702/SwiftMermaid", from: "1.0.0")
 ]
 ```
 
@@ -43,15 +43,15 @@ dependencies: [
 
 ### 基本用法
 
-导入 SwiftMermind 并使用 `mermindView` 组件：
+导入 SwiftMermaid 并使用 `mermaidView` 组件：
 
 ```swift
 import SwiftUI
-import SwiftMermind
+import SwiftMermaid
 
 struct ContentView: View {
     var body: some View {
-        mermindView(text: """
+        mermaidView(text: """
             graph TD
                 A[Start] --> B{Is it working?}
                 B -->|Yes| C[Great!]
@@ -66,7 +66,7 @@ struct ContentView: View {
 
 ### 缩放和滚动功能
 
-`mermindView` 现在支持完整的缩放和滚动功能（iOS 平台）：
+`mermaidView` 现在支持完整的缩放和滚动功能（iOS 平台）：
 
 - **缩放范围**: 0.5x 到 3.0x，支持手势缩放
 - **智能居中**: 内容在任何缩放级别下都能正确居中
@@ -79,14 +79,14 @@ struct ContentView: View {
 ```swift
 // 图表会自动适应内容大小，支持手势缩放和滚动
 // 所有内容都可以通过滚动访问，缩放后文字保持清晰
-mermindView(text: complexDiagramText)
+mermaidView(text: complexDiagramText)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
 ```
 
 ### 流程图示例
 
 ```swift
-mermindView(text: """
+mermaidView(text: """
     graph TD
         A[Start] --> B{Decision Point}
         B -->|Option 1| C[Process A]
@@ -99,7 +99,7 @@ mermindView(text: """
 ### 时序图示例
 
 ```swift
-mermindView(text: """
+mermaidView(text: """
     sequenceDiagram
         participant Alice
         participant Bob
@@ -115,7 +115,7 @@ mermindView(text: """
 ### 饼图示例
 
 ```swift
-mermindView(text: """
+mermaidView(text: """
     pie title Survey Results
         "Satisfied" : 45
         "Neutral" : 30
@@ -125,20 +125,20 @@ mermindView(text: """
 
 ### 使用预定义示例
 
-SwiftMermind 自带了几个预定义示例：
+SwiftMermaid 自带了几个预定义示例：
 
 ```swift
 // 流程图示例
-mermindView.flowchartExample()
+mermaidView.flowchartExample()
 
 // 时序图示例
-mermindView.sequenceExample()
+mermaidView.sequenceExample()
 
 // 饼图示例
-mermindView.pieExample()
+mermaidView.pieExample()
 
 // 类图示例 (占位符)
-mermindView.classExample()
+mermaidView.classExample()
 ```
 
 ## 支持的 Mermaid 语法
@@ -194,9 +194,9 @@ let customEdgeStyle = EdgeStyle(
 
 ## 架构
 
-SwiftMermind 包含以下几个关键组件：
+SwiftMermaid 包含以下几个关键组件：
 
-- **`mermindView`**: 主要的 SwiftUI 视图组件
+- **`mermaidView`**: 主要的 SwiftUI 视图组件
 - **`MermaidParser`**: 将 Mermaid 语法解析为结构化数据
 - **`FlowchartView`**: 渲染流程图
 - **`SequenceDiagramView`**: 渲染时序图
@@ -215,7 +215,7 @@ SwiftMermind 包含以下几个关键组件：
 
 ## 许可证
 
-SwiftMermind 在 MIT 许可证下可用。更多信息请参见 LICENSE 文件。
+SwiftMermaid 在 MIT 许可证下可用。更多信息请参见 LICENSE 文件。
 
 ## 路线图
 
@@ -234,4 +234,4 @@ SwiftMermind 在 MIT 许可证下可用。更多信息请参见 LICENSE 文件�
 
 ---
 
-更多示例和详细文档，请访问我们的 [GitHub 仓库](https://github.com/yourusername/SwiftMermind)。
+更多示例和详细文档，请访问我们的 [GitHub 仓库](https://github.com/yourusername/SwiftMermaid)。

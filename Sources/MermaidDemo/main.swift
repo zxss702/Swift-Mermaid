@@ -1,7 +1,7 @@
 import Foundation
-import SwiftMermind
+import SwiftMermaid
 
-print("Testing Swift-Mermind Diagram Rendering...")
+print("Testing Swift-Mermaid Diagram Rendering...")
 
 // Test flowchart parsing
 let flowchartText = """
@@ -91,8 +91,8 @@ print("\n✅ All rendering improvements applied:")
 print("   - Flowchart: Removed white background, improved positioning")
 print("   - Pie Chart: Complete parsing with title and data extraction")
 print("   - Pie Chart: Percentage calculation and visual enhancements")
-print("   - MermindView: Added zoom and scroll capabilities with UIScrollView")
-print("   - MermindView: Auto content sizing and centering")
-print("   - MermindView: Responsive to text changes with crisp text rendering")
-print("   - MermindView: Zoom range 0.5x to 3.0x with smooth scrolling")
-print("   - MermindView: Cross-platform support (iOS with zoom, macOS fallback)")
+print("   - MermaidView: Added zoom and scroll capabilities with UIScrollView")
+print("   - MermaidView: Auto content sizing and centering")
+print("   - MermaidView: Responsive to text changes with crisp text rendering")
+print("   - MermaidView: Zoom range 0.5x to 3.0x with smooth scrolling")
+print("   - MermaidView: Cross-platform support (iOS with zoom, macOS fallback)")

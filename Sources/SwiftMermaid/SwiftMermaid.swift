@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// The main entry point for the SwiftMermind library
-/// This file provides public access to the mermindView component
+/// The main entry point for the SwiftMermaid library
+/// This file provides public access to the mermaidView component
 
 // Re-export the main view for easier access
-public typealias MermindView = mermindView
+public typealias MermaidView = mermaidView
 
 /// Example usage and documentation
-public struct SwiftMermindExamples {
+public struct SwiftMermaidExamples {
     
     /// Example flowchart diagram
     public static let flowchartExample = """
@@ -64,25 +64,25 @@ public struct SwiftMermindExamples {
 }
 
 /// Convenience initializers and utilities
-extension mermindView {
+extension mermaidView {
     
-    /// Create a mermindView with a flowchart example
-    public static func flowchartExample(scrollable: Bool = true) -> mermindView {
-        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.flowchartExample)
+    /// Create a mermaidView with a flowchart example
+    public static func flowchartExample(scrollable: Bool = true) -> mermaidView {
+        return mermaidView(scrollable: scrollable, text: SwiftMermaidExamples.flowchartExample)
     }
     
-    /// Create a mermindView with a sequence diagram example
-    public static func sequenceExample(scrollable: Bool = true) -> mermindView {
-        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.sequenceExample)
+    /// Create a mermaidView with a sequence diagram example
+    public static func sequenceExample(scrollable: Bool = true) -> mermaidView {
+        return mermaidView(scrollable: scrollable, text: SwiftMermaidExamples.sequenceExample)
     }
     
-    /// Create a mermindView with a pie chart example
-    public static func pieExample(scrollable: Bool = true) -> mermindView {
-        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.pieExample)
+    /// Create a mermaidView with a pie chart example
+    public static func pieExample(scrollable: Bool = true) -> mermaidView {
+        return mermaidView(scrollable: scrollable, text: SwiftMermaidExamples.pieExample)
     }
     
-    /// Create a mermindView with a class diagram example
-    public static func classExample(scrollable: Bool = true) -> mermindView {
-        return mermindView(scrollable: scrollable, text: SwiftMermindExamples.classExample)
+    /// Create a mermaidView with a class diagram example
+    public static func classExample(scrollable: Bool = true) -> mermaidView {
+        return mermaidView(scrollable: scrollable, text: SwiftMermaidExamples.classExample)
     }
 }

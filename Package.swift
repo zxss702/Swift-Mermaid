@@ -4,27 +4,27 @@
 import PackageDescription
 
 let package = Package(
-    name: "SwiftMermind",
+    name: "SwiftMermaid",
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "SwiftMermind",
-            targets: ["SwiftMermind"]),
+            name: "SwiftMermaid",
+            targets: ["SwiftMermaid"]),
         .executable(
-            name: "MermindDemo",
-            targets: ["MermindDemo"]),
+            name: "MermaidDemo",
+            targets: ["MermaidDemo"]),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "SwiftMermind"),
+            name: "SwiftMermaid"),
         .executableTarget(
-            name: "MermindDemo",
-            dependencies: ["SwiftMermind"]),
+            name: "MermaidDemo",
+            dependencies: ["SwiftMermaid"]),
         .testTarget(
-            name: "SwiftMermindTests",
-            dependencies: ["SwiftMermind"]),
+            name: "SwiftMermaidTests",
+            dependencies: ["SwiftMermaid"]),
     ]
 )

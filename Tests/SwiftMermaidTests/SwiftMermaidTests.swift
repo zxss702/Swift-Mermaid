@@ -1,7 +1,7 @@
 import XCTest
-@testable import SwiftMermind
+@testable import SwiftMermaid
 
-final class SwiftMermindTests: XCTestCase {
+final class SwiftMermaidTests: XCTestCase {
     func testMermaidParser() throws {
         let parser = MermaidParser()
         
