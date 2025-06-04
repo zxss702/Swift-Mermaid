@@ -625,7 +625,7 @@ public class MermaidParser {
         
         let lines = text.components(separatedBy: .newlines)
         var currentLoop: SequenceLoop?
-        var skipUntilEnd = false
+//        var skipUntilEnd = false
         var nestingLevel = 0
         
         for (index, line) in lines.enumerated() {
@@ -887,7 +887,7 @@ public class MermaidParser {
                 if let member = parseClassMember(memberDeclaration) {
                     // Find or create class
                     if let existingIndex = classes.firstIndex(where: { $0.name == className }) {
-                        var existingClass = classes[existingIndex]
+                        let existingClass = classes[existingIndex]
                         if member.isMethod {
                             let newMethods = existingClass.methods + [member.method!]
                             classes[existingIndex] = ClassEntity(
@@ -1159,15 +1159,15 @@ public class MermaidParser {
         }
         
         // 现在根据实际尺寸定位类
-        var currentY = padding
+        let currentY = padding
         
         for (index, classEntity) in classes.enumerated() {
             let row = index / classesPerRow
             let col = index % classesPerRow
             
             // 计算X位置 - 在行内居中分布
-            let classesInThisRow = min(classesPerRow, classes.count - row * classesPerRow)
-            let totalRowWidth = CGFloat(classesInThisRow) * rowMaxWidths[row] + CGFloat(classesInThisRow - 1) * horizontalSpacing
+//            let classesInThisRow = min(classesPerRow, classes.count - row * classesPerRow)
+//            let totalRowWidth = CGFloat(classesInThisRow) * rowMaxWidths[row] + CGFloat(classesInThisRow - 1) * horizontalSpacing
             let startX = padding
             let x = startX + CGFloat(col) * (rowMaxWidths[row] + horizontalSpacing) + rowMaxWidths[row] / 2
             
@@ -1373,8 +1373,8 @@ public class MermaidParser {
             !startStates.contains { $0.id == state.id } && !endStates.contains { $0.id == state.id }
         }
         
-        var currentY = padding
-        var allStates = startStates + regularStates + endStates
+        let currentY = padding
+        let allStates = startStates + regularStates + endStates
         
         for (index, state) in allStates.enumerated() {
             let row = index / statesPerRow
