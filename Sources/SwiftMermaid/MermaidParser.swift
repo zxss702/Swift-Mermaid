@@ -779,8 +779,12 @@ public class MermaidParser {
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             
-            // Skip empty lines and diagram declaration
-            if trimmedLine.isEmpty || trimmedLine.lowercased().hasPrefix("classdiagram") {
+            // Skip empty lines, diagram declaration, direction commands, and comments
+            if trimmedLine.isEmpty || 
+               trimmedLine.lowercased().hasPrefix("classdiagram") ||
+               trimmedLine.lowercased().hasPrefix("direction") ||
+               trimmedLine.hasPrefix("%%") ||
+               trimmedLine.lowercased().hasPrefix("note for") {
                 continue
             }
             
