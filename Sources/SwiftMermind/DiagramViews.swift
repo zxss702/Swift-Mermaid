@@ -13,25 +13,263 @@ public struct ClassDiagramView: View {
     }
     
     public var body: some View {
-        VStack {
-            Text("Class Diagram")
-                .font(.title2)
-                .fontWeight(.bold)
-            
-            Text("Coming Soon")
-                .font(.caption)
-                .foregroundColor(.gray)
-            
-            ScrollView {
-                Text(diagram.rawText)
-                    .font(.system(.caption, design: .monospaced))
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+        GeometryReader { geometry in
+            ZStack {
+                // Draw relationships first (so they appear behind classes)
+                ForEach(relationships.indices, id: \.self) { index in
+                    ClassRelationshipView(
+                        relationship: relationships[index],
+                        classes: classes
+                    )
+                }
+                
+                // Draw classes
+                ForEach(classes, id: \.name) { classEntity in
+                    ClassEntityView(classEntity: classEntity)
+                        .position(classEntity.position)
+                }
             }
         }
         .frame(width: size.width, height: size.height)
-        .padding()
+    }
+    
+    private var classes: [ClassEntity] {
+        return (diagram.parsedData["classes"] as? [ClassEntity]) ?? []
+    }
+    
+    private var relationships: [ClassRelationship] {
+        return (diagram.parsedData["relationships"] as? [ClassRelationship]) ?? []
+    }
+}
+
+/// A view that renders a single class entity
+public struct ClassEntityView: View {
+    private let classEntity: ClassEntity
+    private let padding: CGFloat = 8
+    private let headerHeight: CGFloat = 30
+    private let memberHeight: CGFloat = 20
+    
+    public init(classEntity: ClassEntity) {
+        self.classEntity = classEntity
+    }
+    
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Class name header
+            Text(classEntity.name)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .frame(height: headerHeight)
+                .background(Color.blue.opacity(0.1))
+            
+            // Separator line
+            Rectangle()
+                .fill(Color.black)
+                .frame(height: 1)
+            
+            // Attributes section
+            if !classEntity.attributes.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(classEntity.attributes.indices, id: \.self) { index in
+                        ClassAttributeView(attribute: classEntity.attributes[index])
+                    }
+                }
+                .padding(.horizontal, padding)
+                .padding(.vertical, 4)
+                
+                // Separator line
+                Rectangle()
+                    .fill(Color.black)
+                    .frame(height: 1)
+            }
+            
+            // Methods section
+            if !classEntity.methods.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(classEntity.methods.indices, id: \.self) { index in
+                        ClassMethodView(method: classEntity.methods[index])
+                    }
+                }
+                .padding(.horizontal, padding)
+                .padding(.vertical, 4)
+            }
+        }
+        .background(Color.white)
+        .overlay(
+            Rectangle()
+                .stroke(Color.black, lineWidth: 1)
+        )
+        .frame(width: calculateWidth(), height: calculateHeight())
+    }
+    
+    private func calculateWidth() -> CGFloat {
+        let minWidth: CGFloat = 120
+        let nameWidth = CGFloat(classEntity.name.count * 8) + padding * 2
+        
+        let attributeWidths = classEntity.attributes.map { attribute in
+            CGFloat("\(attribute.visibility.symbol)\(attribute.type) \(attribute.name)".count * 7)
+        }
+        
+        let methodWidths = classEntity.methods.map { method in
+            CGFloat("\(method.visibility.symbol)\(method.name)()".count * 7)
+        }
+        
+        let maxContentWidth = ([nameWidth] + attributeWidths + methodWidths).max() ?? minWidth
+        return max(minWidth, maxContentWidth + padding * 2)
+    }
+    
+    private func calculateHeight() -> CGFloat {
+        let headerHeight = self.headerHeight
+        let attributesHeight = classEntity.attributes.isEmpty ? 0 : CGFloat(classEntity.attributes.count) * memberHeight + 8
+        let methodsHeight = classEntity.methods.isEmpty ? 0 : CGFloat(classEntity.methods.count) * memberHeight + 8
+        let separatorHeight: CGFloat = (classEntity.attributes.isEmpty ? 0 : 1) + (classEntity.methods.isEmpty ? 0 : 1)
+        
+        return headerHeight + attributesHeight + methodsHeight + separatorHeight
+    }
+}
+
+/// A view that renders a class attribute
+public struct ClassAttributeView: View {
+    private let attribute: ClassAttribute
+    
+    public init(attribute: ClassAttribute) {
+        self.attribute = attribute
+    }
+    
+    public var body: some View {
+        HStack(spacing: 4) {
+            Text(attribute.visibility.symbol)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(visibilityColor)
+            
+            Text("\(attribute.type) \(attribute.name)")
+                .font(.system(size: 12))
+                .foregroundColor(.black)
+            
+            Spacer()
+        }
+        .frame(height: 16)
+    }
+    
+    private var visibilityColor: Color {
+        switch attribute.visibility {
+        case .public_: return .green
+        case .private_: return .red
+        case .protected: return .orange
+        case .package: return .blue
+        }
+    }
+}
+
+/// A view that renders a class method
+public struct ClassMethodView: View {
+    private let method: ClassMethod
+    
+    public init(method: ClassMethod) {
+        self.method = method
+    }
+    
+    public var body: some View {
+        HStack(spacing: 4) {
+            Text(method.visibility.symbol)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(visibilityColor)
+            
+            Text("\(method.name)()")
+                .font(.system(size: 12))
+                .foregroundColor(.black)
+            
+            Spacer()
+        }
+        .frame(height: 16)
+    }
+    
+    private var visibilityColor: Color {
+        switch method.visibility {
+        case .public_: return .green
+        case .private_: return .red
+        case .protected: return .orange
+        case .package: return .blue
+        }
+    }
+}
+
+/// A view that renders a relationship between classes
+public struct ClassRelationshipView: View {
+    private let relationship: ClassRelationship
+    private let classes: [ClassEntity]
+    
+    public init(relationship: ClassRelationship, classes: [ClassEntity]) {
+        self.relationship = relationship
+        self.classes = classes
+    }
+    
+    public var body: some View {
+        if let fromClass = classes.first(where: { $0.name == relationship.from }),
+           let toClass = classes.first(where: { $0.name == relationship.to }) {
+            
+            Path { path in
+                path.move(to: fromClass.position)
+                path.addLine(to: toClass.position)
+            }
+            .stroke(relationshipColor, lineWidth: relationshipLineWidth)
+            .overlay(
+                relationshipArrow(from: fromClass.position, to: toClass.position)
+            )
+        }
+    }
+    
+    private var relationshipColor: Color {
+        switch relationship.type {
+        case .inheritance: return .blue
+        case .composition: return .red
+        case .aggregation: return .orange
+        case .association: return .black
+        case .dependency: return .gray
+        case .realization: return .purple
+        }
+    }
+    
+    private var relationshipLineWidth: CGFloat {
+        switch relationship.type {
+        case .dependency: return 1
+        default: return 2
+        }
+    }
+    
+    private func relationshipArrow(from: CGPoint, to: CGPoint) -> some View {
+        let angle = atan2(to.y - from.y, to.x - from.x)
+        let arrowLength: CGFloat = 10
+        let arrowAngle: CGFloat = .pi / 6
+        
+        return Path { path in
+            // Arrow head
+            let arrowPoint1 = CGPoint(
+                x: to.x - arrowLength * cos(angle - arrowAngle),
+                y: to.y - arrowLength * sin(angle - arrowAngle)
+            )
+            let arrowPoint2 = CGPoint(
+                x: to.x - arrowLength * cos(angle + arrowAngle),
+                y: to.y - arrowLength * sin(angle + arrowAngle)
+            )
+            
+            switch relationship.type {
+            case .inheritance:
+                // Triangle arrow for inheritance
+                path.move(to: to)
+                path.addLine(to: arrowPoint1)
+                path.addLine(to: arrowPoint2)
+                path.closeSubpath()
+            default:
+                // Simple arrow
+                path.move(to: to)
+                path.addLine(to: arrowPoint1)
+                path.move(to: to)
+                path.addLine(to: arrowPoint2)
+            }
+        }
+        .stroke(relationshipColor, lineWidth: relationshipLineWidth)
     }
 }
 

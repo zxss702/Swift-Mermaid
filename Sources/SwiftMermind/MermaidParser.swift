@@ -14,6 +14,93 @@ public enum DiagramType {
     case unknown
 }
 
+// MARK: - Class Diagram Data Structures
+
+/// Represents a class in a class diagram
+public struct ClassEntity {
+    public let name: String
+    public let attributes: [ClassAttribute]
+    public let methods: [ClassMethod]
+    public let position: CGPoint
+    
+    public init(name: String, attributes: [ClassAttribute] = [], methods: [ClassMethod] = [], position: CGPoint = .zero) {
+        self.name = name
+        self.attributes = attributes
+        self.methods = methods
+        self.position = position
+    }
+}
+
+/// Represents an attribute in a class
+public struct ClassAttribute {
+    public let name: String
+    public let type: String
+    public let visibility: ClassVisibility
+    
+    public init(name: String, type: String, visibility: ClassVisibility) {
+        self.name = name
+        self.type = type
+        self.visibility = visibility
+    }
+}
+
+/// Represents a method in a class
+public struct ClassMethod {
+    public let name: String
+    public let returnType: String?
+    public let parameters: [String]
+    public let visibility: ClassVisibility
+    
+    public init(name: String, returnType: String? = nil, parameters: [String] = [], visibility: ClassVisibility) {
+        self.name = name
+        self.returnType = returnType
+        self.parameters = parameters
+        self.visibility = visibility
+    }
+}
+
+/// Represents the visibility of class members
+public enum ClassVisibility {
+    case public_    // +
+    case private_   // -
+    case protected  // #
+    case package    // ~
+    
+    public var symbol: String {
+        switch self {
+        case .public_: return "+"
+        case .private_: return "-"
+        case .protected: return "#"
+        case .package: return "~"
+        }
+    }
+}
+
+/// Represents a relationship between classes
+public struct ClassRelationship {
+    public let from: String
+    public let to: String
+    public let type: ClassRelationshipType
+    public let label: String?
+    
+    public init(from: String, to: String, type: ClassRelationshipType, label: String? = nil) {
+        self.from = from
+        self.to = to
+        self.type = type
+        self.label = label
+    }
+}
+
+/// Represents the type of relationship between classes
+public enum ClassRelationshipType {
+    case inheritance     // <|--
+    case composition     // *--
+    case aggregation     // o--
+    case association     // -->
+    case dependency      // ..>
+    case realization     // ..|>
+}
+
 // MARK: - Sequence Diagram Data Structures
 
 /// Represents a message in a sequence diagram
@@ -674,8 +761,306 @@ public class MermaidParser {
     }
     
     private func parseClassDiagram(_ text: String) -> MermaidDiagram {
-        // Simplified implementation
-        return MermaidDiagram(type: .classDiagram, rawText: text)
+        var classes: [ClassEntity] = []
+        var relationships: [ClassRelationship] = []
+        var currentClass: String? = nil
+        var currentAttributes: [ClassAttribute] = []
+        var currentMethods: [ClassMethod] = []
+        
+        let lines = text.components(separatedBy: .newlines)
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            // Skip empty lines and diagram declaration
+            if trimmedLine.isEmpty || trimmedLine.lowercased().hasPrefix("classdiagram") {
+                continue
+            }
+            
+            // Parse class relationships
+            if let relationship = parseClassRelationship(trimmedLine) {
+                relationships.append(relationship)
+                continue
+            }
+            
+            // Parse class declaration
+            if trimmedLine.hasPrefix("class ") {
+                // Save previous class if exists
+                if let className = currentClass {
+                    let classEntity = ClassEntity(
+                        name: className,
+                        attributes: currentAttributes,
+                        methods: currentMethods
+                    )
+                    classes.append(classEntity)
+                }
+                
+                // Start new class
+                let classDeclaration = trimmedLine.replacingOccurrences(of: "class ", with: "")
+                if let openBrace = classDeclaration.firstIndex(of: "{") {
+                    currentClass = String(classDeclaration[..<openBrace]).trimmingCharacters(in: .whitespaces)
+                } else {
+                    currentClass = classDeclaration.trimmingCharacters(in: .whitespaces)
+                }
+                currentAttributes = []
+                currentMethods = []
+                continue
+            }
+            
+            // Parse class members (attributes and methods)
+            if let member = parseClassMember(trimmedLine) {
+                if member.isMethod {
+                    currentMethods.append(member.method!)
+                } else {
+                    currentAttributes.append(member.attribute!)
+                }
+                continue
+            }
+            
+            // Parse standalone class members (outside class block)
+            if let colonIndex = trimmedLine.firstIndex(of: ":") {
+                let className = String(trimmedLine[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+                let memberDeclaration = String(trimmedLine[trimmedLine.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
+                
+                if let member = parseClassMember(memberDeclaration) {
+                    // Find or create class
+                    if let existingIndex = classes.firstIndex(where: { $0.name == className }) {
+                        var existingClass = classes[existingIndex]
+                        if member.isMethod {
+                            let newMethods = existingClass.methods + [member.method!]
+                            classes[existingIndex] = ClassEntity(
+                                name: existingClass.name,
+                                attributes: existingClass.attributes,
+                                methods: newMethods,
+                                position: existingClass.position
+                            )
+                        } else {
+                            let newAttributes = existingClass.attributes + [member.attribute!]
+                            classes[existingIndex] = ClassEntity(
+                                name: existingClass.name,
+                                attributes: newAttributes,
+                                methods: existingClass.methods,
+                                position: existingClass.position
+                            )
+                        }
+                    } else {
+                        // Create new class
+                        let newClass = ClassEntity(
+                            name: className,
+                            attributes: member.isMethod ? [] : [member.attribute!],
+                            methods: member.isMethod ? [member.method!] : []
+                        )
+                        classes.append(newClass)
+                    }
+                }
+            }
+        }
+        
+        // Save last class if exists
+        if let className = currentClass {
+            let classEntity = ClassEntity(
+                name: className,
+                attributes: currentAttributes,
+                methods: currentMethods
+            )
+            classes.append(classEntity)
+        }
+        
+        // Calculate positions for classes
+        let positionedClasses = calculateClassPositions(classes)
+        
+        // Convert to nodes and edges for compatibility
+        let nodes = positionedClasses.map { classEntity in
+            Node(
+                id: classEntity.name,
+                label: classEntity.name,
+                shape: .rectangle,
+                position: classEntity.position
+            )
+        }
+        
+        let edges = relationships.map { relationship in
+            Edge(
+                from: relationship.from,
+                to: relationship.to,
+                label: relationship.label ?? "",
+                style: EdgeStyle()
+            )
+        }
+        
+        let parsedData: [String: Any] = [
+            "classes": positionedClasses,
+            "relationships": relationships
+        ]
+        
+        return MermaidDiagram(
+            type: .classDiagram,
+            nodes: nodes,
+            edges: edges,
+            rawText: text,
+            parsedData: parsedData
+        )
+    }
+    
+    private func parseClassRelationship(_ line: String) -> ClassRelationship? {
+        // Parse inheritance: Animal <|-- Duck
+        if line.contains("<|--") {
+            let parts = line.components(separatedBy: "<|--")
+            if parts.count == 2 {
+                let to = parts[0].trimmingCharacters(in: .whitespaces)
+                let from = parts[1].trimmingCharacters(in: .whitespaces)
+                return ClassRelationship(from: from, to: to, type: .inheritance)
+            }
+        }
+        
+        // Parse composition: Class1 *-- Class2
+        if line.contains("*--") {
+            let parts = line.components(separatedBy: "*--")
+            if parts.count == 2 {
+                let from = parts[0].trimmingCharacters(in: .whitespaces)
+                let to = parts[1].trimmingCharacters(in: .whitespaces)
+                return ClassRelationship(from: from, to: to, type: .composition)
+            }
+        }
+        
+        // Parse aggregation: Class1 o-- Class2
+        if line.contains("o--") {
+            let parts = line.components(separatedBy: "o--")
+            if parts.count == 2 {
+                let from = parts[0].trimmingCharacters(in: .whitespaces)
+                let to = parts[1].trimmingCharacters(in: .whitespaces)
+                return ClassRelationship(from: from, to: to, type: .aggregation)
+            }
+        }
+        
+        // Parse association: Class1 --> Class2
+        if line.contains("-->") && !line.contains("<|--") {
+            let parts = line.components(separatedBy: "-->")
+            if parts.count == 2 {
+                let from = parts[0].trimmingCharacters(in: .whitespaces)
+                let to = parts[1].trimmingCharacters(in: .whitespaces)
+                return ClassRelationship(from: from, to: to, type: .association)
+            }
+        }
+        
+        // Parse dependency: Class1 ..> Class2
+        if line.contains("..") && line.contains(">") {
+            let parts = line.components(separatedBy: "..>")
+            if parts.count == 2 {
+                let from = parts[0].trimmingCharacters(in: .whitespaces)
+                let to = parts[1].trimmingCharacters(in: .whitespaces)
+                return ClassRelationship(from: from, to: to, type: .dependency)
+            }
+        }
+        
+        return nil
+    }
+    
+    private func parseClassMember(_ line: String) -> (isMethod: Bool, attribute: ClassAttribute?, method: ClassMethod?)? {
+        let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+        
+        // Skip empty lines and braces
+        if trimmedLine.isEmpty || trimmedLine == "{" || trimmedLine == "}" {
+            return nil
+        }
+        
+        // Parse visibility
+        var visibility: ClassVisibility = .public_
+        var memberLine = trimmedLine
+        
+        if let firstChar = trimmedLine.first {
+            switch firstChar {
+            case "+":
+                visibility = .public_
+                memberLine = String(trimmedLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+            case "-":
+                visibility = .private_
+                memberLine = String(trimmedLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+            case "#":
+                visibility = .protected
+                memberLine = String(trimmedLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+            case "~":
+                visibility = .package
+                memberLine = String(trimmedLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+            default:
+                break
+            }
+        }
+        
+        // Check if it's a method (contains parentheses)
+        if memberLine.contains("(") && memberLine.contains(")") {
+            // Parse method
+            if let openParen = memberLine.firstIndex(of: "("),
+               let closeParen = memberLine.lastIndex(of: ")") {
+                let methodName = String(memberLine[..<openParen]).trimmingCharacters(in: .whitespaces)
+                let parametersString = String(memberLine[memberLine.index(after: openParen)..<closeParen])
+                
+                let parameters = parametersString.isEmpty ? [] : 
+                    parametersString.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                
+                let method = ClassMethod(
+                    name: methodName,
+                    returnType: nil,
+                    parameters: parameters,
+                    visibility: visibility
+                )
+                
+                return (isMethod: true, attribute: nil, method: method)
+            }
+        } else {
+            // Parse attribute
+            let components = memberLine.components(separatedBy: " ")
+            if components.count >= 2 {
+                let type = components[0]
+                let name = components[1]
+                
+                let attribute = ClassAttribute(
+                    name: name,
+                    type: type,
+                    visibility: visibility
+                )
+                
+                return (isMethod: false, attribute: attribute, method: nil)
+            } else if components.count == 1 {
+                // Simple attribute without type
+                let attribute = ClassAttribute(
+                    name: components[0],
+                    type: "String",
+                    visibility: visibility
+                )
+                
+                return (isMethod: false, attribute: attribute, method: nil)
+            }
+        }
+        
+        return nil
+    }
+    
+    private func calculateClassPositions(_ classes: [ClassEntity]) -> [ClassEntity] {
+        let classSpacing: CGFloat = 200
+        let rowHeight: CGFloat = 150
+        let classesPerRow = 3
+        
+        var positionedClasses: [ClassEntity] = []
+        
+        for (index, classEntity) in classes.enumerated() {
+            let row = index / classesPerRow
+            let col = index % classesPerRow
+            
+            let x = CGFloat(col) * classSpacing + 100
+            let y = CGFloat(row) * rowHeight + 100
+            
+            let positionedClass = ClassEntity(
+                name: classEntity.name,
+                attributes: classEntity.attributes,
+                methods: classEntity.methods,
+                position: CGPoint(x: x, y: y)
+            )
+            
+            positionedClasses.append(positionedClass)
+        }
+        
+        return positionedClasses
     }
     
     private func parseStateDiagram(_ text: String) -> MermaidDiagram {
