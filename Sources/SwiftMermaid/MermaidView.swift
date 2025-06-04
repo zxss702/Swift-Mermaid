@@ -378,7 +378,7 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         let transitionCount = stateDiagram.transitions.count
         
         // 估算图表的复杂度
-        let complexity = max(stateCount, 1) * (1 + Double(nestedStateCount) * 0.5)
+        let complexity = Double(max(stateCount, 1)) * (1 + Double(nestedStateCount) * 0.5)
         
         // 根据状态图的方向调整宽高比
         let isHorizontal = diagram.rawText.contains("direction LR") || diagram.rawText.contains("direction RL")
