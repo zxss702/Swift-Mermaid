@@ -3,8 +3,8 @@ import SwiftUI
 /// A view that renders a flowchart diagram
 public struct FlowchartView: View {
     private let diagram: MermaidDiagram
-    private let nodeSpacing: CGFloat = 150
-    private let levelSpacing: CGFloat = 100
+    private let nodeSpacing: CGFloat = 200
+    private let levelSpacing: CGFloat = 150
     
     public init(diagram: MermaidDiagram) {
         self.diagram = diagram
@@ -105,7 +105,10 @@ public struct NodeView: View {
         Text(node.label)
             .font(.system(size: node.style.fontSize, weight: node.style.fontWeight))
             .foregroundColor(node.style.textColor)
+            .multilineTextAlignment(.center)
+            .lineLimit(nil)
             .padding(padding)
+            .frame(minWidth: minNodeWidth, minHeight: minNodeHeight)
             .background(
                 nodeShape()
                     .fill(node.style.fillColor)
@@ -114,6 +117,28 @@ public struct NodeView: View {
                             .stroke(node.style.strokeColor, lineWidth: node.style.strokeWidth)
                     )
             )
+    }
+    
+    private var minNodeWidth: CGFloat {
+        switch node.shape {
+        case .diamond:
+            return 120
+        case .circle:
+            return 80
+        default:
+            return 100
+        }
+    }
+    
+    private var minNodeHeight: CGFloat {
+        switch node.shape {
+        case .diamond:
+            return 80
+        case .circle:
+            return 80
+        default:
+            return 60
+        }
     }
     
     private func nodeShape() -> AnyShape {
@@ -160,17 +185,20 @@ public struct EdgeView: View {
                 let fromPoint = fromNode.position
                 let toPoint = toNode.position
                 
+                // Calculate edge points on node boundaries
+                let (edgeFromPoint, edgeToPoint) = calculateEdgePoints(from: fromNode, to: toNode)
+                
                 ZStack {
                     // Draw the line
                     Path { path in
-                        path.move(to: fromPoint)
-                        path.addLine(to: toPoint)
+                        path.move(to: edgeFromPoint)
+                        path.addLine(to: edgeToPoint)
                     }
                     .stroke(edge.style.strokeColor, lineWidth: edge.style.strokeWidth)
                     
                     // Draw the arrow
                     if edge.type == .arrow || edge.type == .doubleArrow {
-                        ArrowShape(start: fromPoint, end: toPoint)
+                        ArrowShape(start: edgeFromPoint, end: edgeToPoint)
                             .fill(edge.style.strokeColor)
                     }
                     
@@ -179,16 +207,68 @@ public struct EdgeView: View {
                         Text(edge.label)
                             .font(.system(size: edge.style.fontSize))
                             .foregroundColor(edge.style.textColor)
+                            .padding(4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.white.opacity(0.8))
+                            )
                             .position(
                                 CGPoint(
-                                    x: (fromPoint.x + toPoint.x) / 2,
-                                    y: (fromPoint.y + toPoint.y) / 2
+                                    x: (edgeFromPoint.x + edgeToPoint.x) / 2,
+                                    y: (edgeFromPoint.y + edgeToPoint.y) / 2 - 10
                                 )
                             )
-                            .padding(4)
                     }
                 }
             }
+        }
+    }
+    
+    private func calculateEdgePoints(from fromNode: Node, to toNode: Node) -> (CGPoint, CGPoint) {
+        let fromCenter = fromNode.position
+        let toCenter = toNode.position
+        
+        // Calculate direction vector
+        let dx = toCenter.x - fromCenter.x
+        let dy = toCenter.y - fromCenter.y
+        let distance = sqrt(dx * dx + dy * dy)
+        
+        if distance == 0 {
+            return (fromCenter, toCenter)
+        }
+        
+        // Normalize direction vector
+        let unitX = dx / distance
+        let unitY = dy / distance
+        
+        // Calculate node boundaries based on shape
+        let fromRadius = getNodeRadius(fromNode)
+        let toRadius = getNodeRadius(toNode)
+        
+        // Calculate edge points
+        let fromEdge = CGPoint(
+            x: fromCenter.x + unitX * fromRadius,
+            y: fromCenter.y + unitY * fromRadius
+        )
+        
+        let toEdge = CGPoint(
+            x: toCenter.x - unitX * toRadius,
+            y: toCenter.y - unitY * toRadius
+        )
+        
+        return (fromEdge, toEdge)
+    }
+    
+    private func getNodeRadius(_ node: Node) -> CGFloat {
+        switch node.shape {
+        case .circle:
+            return 40 // Circle radius
+        case .diamond:
+            return 60 // Diamond diagonal radius
+        case .hexagon:
+            return 50 // Hexagon radius
+        default:
+            return 50 // Default rectangular node radius
         }
     }
 }
