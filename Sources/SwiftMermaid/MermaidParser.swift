@@ -1525,6 +1525,7 @@ public class MermaidParser {
     private func parseTimeline(_ text: String) -> MermaidDiagram {
         var timelineEvents: [TimelineEvent] = []
         var title = ""
+        var currentPeriod = ""
         
         let lines = text.components(separatedBy: .newlines)
         
@@ -1549,8 +1550,13 @@ public class MermaidParser {
             
             // Parse timeline events
             if let colonIndex = trimmedLine.firstIndex(of: ":") {
-                let period = String(trimmedLine[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+                let periodPart = String(trimmedLine[..<colonIndex]).trimmingCharacters(in: .whitespaces)
                 let eventsString = String(trimmedLine[trimmedLine.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
+                
+                // If period part is not empty, update current period
+                if !periodPart.isEmpty {
+                    currentPeriod = periodPart
+                }
                 
                 // Split events by comma or newline
                 let events = eventsString.components(separatedBy: CharacterSet(charactersIn: ",\n"))
@@ -1559,7 +1565,7 @@ public class MermaidParser {
                 
                 for event in events {
                     timelineEvents.append(TimelineEvent(
-                        period: period,
+                        period: currentPeriod,
                         event: event,
                         position: CGPoint(x: 0, y: 0)
                     ))

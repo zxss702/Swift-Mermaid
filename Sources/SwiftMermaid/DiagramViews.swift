@@ -838,7 +838,7 @@ public struct TimelineView: View {
             // Title
             if !title.isEmpty {
                 Text(title)
-                    .font(.title2)
+                    .font(.custom(size: .title2))
                     .fontWeight(.bold)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
@@ -899,7 +899,7 @@ public struct TimelinePeriodView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Period header
             Text(period)
-                .font(.headline)
+                .font(.custom(size: .headline))
                 .fontWeight(.semibold)
                 .foregroundColor(.blue)
                 .padding(.horizontal, 12)
@@ -919,7 +919,7 @@ public struct TimelinePeriodView: View {
                         
                         // Event text
                         Text(events[index])
-                            .font(.body)
+                            .font(.custom(size: .body))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)

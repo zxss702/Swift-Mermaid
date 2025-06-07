@@ -372,8 +372,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         )
     }
     
-    private func getTextSize(_ content: String, font: CGFloat) -> CGSize {
-        NSAttributedString(string: content, attributes: [.font: UIFont.systemFont(ofSize: font)]).size()
+    private func getTextSize(_ content: String, font: FontSize) -> CGSize {
+        NSAttributedString(string: content, attributes: [.font: UIFont.custom(size: font)]).size()
     }
     private func calculateTimelineSize(diagram: MermaidDiagram) -> CGSize {
         // 从 parsedData 中获取时间线信息
@@ -412,8 +412,8 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         var totalWidth: CGFloat = horizontalPadding
         for group in groupedEvents {
             // 计算时期标题宽度
-            let periodTitleWidth = getTextSize(group.period, font: 17).width + 24 // 简化计算
-            let maxEventWidth = group.events.map { getTextSize($0, font: 17).width }.max() ?? 100
+            let periodTitleWidth = getTextSize(group.period, font: .headline).width + 24 // 简化计算
+            let maxEventWidth = group.events.map { getTextSize($0, font: .body).width }.max() ?? 100
             totalWidth += max(periodTitleWidth, maxEventWidth) + 42
         }
         
@@ -422,7 +422,7 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
         
         // 标题高度（简化计算）
         if !title.isEmpty {
-            totalHeight += getTextSize(title, font: 24).height + 12 // 减少标题下方间距
+            totalHeight += getTextSize(title, font: .title2).height + 12 // 减少标题下方间距
         }
         
         // 计算最高的时期高度
@@ -432,11 +432,11 @@ class ZoomableScrollViewController: UIViewController, UIScrollViewDelegate {
             var periodHeight: CGFloat = 0
             
             // 时期标题高度（简化）
-            periodHeight += getTextSize(group.period, font: 17).height + 20
+            periodHeight += getTextSize(group.period, font: .headline).height + 20
             
             // 事件高度（更紧凑）
             group.events.forEach {
-                periodHeight += getTextSize($0, font: 17).height + 8
+                periodHeight += getTextSize($0, font: .body).height + 8
             }
             periodHeight -= 8
             
